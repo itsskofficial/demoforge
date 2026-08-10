@@ -251,7 +251,9 @@ def power(seconds):
     import random
 
     rng = random.Random(7)
-    dots = [(300 + (i % 40) * 33, 420 + (i // 40) * 33) for i in range(400)]
+    # 40 x 10 at 28px pitch ends at x=1392, clear of the results panel at 1480.
+    # At 33px the grid ran underneath it.
+    dots = [(300 + (i % 40) * 28, 430 + (i // 40) * 28) for i in range(400)]
     caught = {i for i in range(400) if rng.random() < 0.012}
 
     def draw(d, img, t):
@@ -264,7 +266,7 @@ def power(seconds):
             a = window(t, start, 0.25)
             if a > 0.02:
                 on = i in caught
-                d.ellipse([x, y, x + 20, y + 20],
+                d.ellipse([x, y, x + 17, y + 17],
                           fill=blend(WARN if on else (44, 52, 62), a))
         if t > 4.0:
             a = window(t, 4.0, 0.5)
