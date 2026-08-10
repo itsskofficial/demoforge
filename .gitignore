@@ -1,4 +1,4 @@
-.venv/
+.venv*/
 __pycache__/
 *.pyc
 
@@ -18,3 +18,7 @@ assets/voice/
 
 # API keys.
 .env
+
+# Vendored third-party model code and weights.
+vendor/
+assets/face/
