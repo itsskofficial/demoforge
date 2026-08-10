@@ -1,9 +1,14 @@
 # Screen recordings — ready for your voiceover
 
-**`demo/record/livingeval-demo-screen.mp4` — 5:58, 1920×1080, 30fps, no audio.**
+**`out/master.mp4` — 5:58, 1920×1080, 30fps, no audio.**
 
 Every segment in RECORDING.md order, hard-cut, one file. Individual segments are in
-`demo/record/segments/` if you want to re-time anything in an editor.
+`out/segments/` if you want to re-time anything in an editor.
+
+> This tooling used to live in `livingeval/demo/record/`. It is now its own project,
+> **demoforge**, and livingeval is just the first thing it records. Paths below are
+> relative to the demoforge repo, and commands need `DEMOFORGE_TARGET` pointing at
+> your livingeval checkout.
 
 ## Read this first: three numbers in your script changed
 
@@ -48,7 +53,7 @@ If you would rather have the bigger numbers, re-run `python -m demo.loop --reset
 | 5:02.17 | 22.1s | Step 7a | The dashboard (browser) |
 | 5:24.30 | 34.0s | Step 7b | In CI: it exits non-zero |
 
-Also in `demo/record/segments/timecodes.json`.
+Also in `out/segments/timecodes.json`.
 
 The picture **stops on every number you have a line about** — the coverage bars, the
 power table, the gate, the before/after. Those holds are 5–8 seconds, so you have room
@@ -101,7 +106,7 @@ stayed unlocked, and no notification or stray window can appear in the footage.
 - **The suite is now 87 cases**, not the frozen 50 — steps 5b and 5c promoted into it.
   Put it back with `python -m demo.loop --reset` before any further recording.
 - **The review queue is empty** (all confirmed and promoted).
-- **The server is still running** on `:8000` from `demo/record/serve_fast.py`. Kill it
+- **The server is still running** on `:8000` from `projects/livingeval/serve_fast.py`. Kill it
   when you're done. It is `dev.py serve` with the startup refit disabled — the refit
   embeds all 480 traces before binding the port, which left the socket dead for over ten
   minutes; nothing on screen reads the fitted scorer.
@@ -110,19 +115,20 @@ stayed unlocked, and no notification or stray window can appear in the footage.
 
 ## Re-rendering
 
-Pacing lives in `demo/record/build.py` as *holds* matched against a line of real output,
-so re-capturing on a different machine will not desynchronise them.
+Pacing lives in `projects/livingeval/build.py` as *holds* matched against a line of real
+output, so re-capturing on a different machine will not desynchronise them.
 
 ```bash
-python -m demo.record.build s4_measure    # one segment, ~30s
-python -m demo.record.build               # all terminal segments
-python -m demo.record.browser review      # re-record the queue (needs pending proposals)
-python -m demo.record.cards               # steps 2 and 3
-python -m demo.record.stitch              # master + timecodes
+export DEMOFORGE_TARGET=D:/Career/Technology/Projects/livingeval
+python projects/livingeval/build.py s4_measure   # one segment, ~30s
+python projects/livingeval/build.py              # all terminal segments
+python projects/livingeval/cards.py              # steps 2 and 3
+python -m demoforge.browser review               # needs pending proposals
+python -m demoforge.stitch                       # master + timecodes
 ```
 
 To re-capture a command's output for real:
 
 ```bash
-python -m demo.record.capture step4_measure.json -- python -m demo.run measure
+python -m demoforge.capture step4_measure.json -- python -m demo.run measure
 ```

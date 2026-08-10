@@ -104,9 +104,10 @@ class Voice:
         import torch
         import torchaudio
 
+        parts = self.chunk(text)
         pieces = []
         silence = torch.zeros(1, int(gap * self.model.sr))
-        for i, part in enumerate(self.chunk(text)):
+        for i, part in enumerate(parts):
             wav = self.model.generate(
                 part,
                 audio_prompt_path=str(self.reference),
@@ -114,7 +115,7 @@ class Voice:
                 cfg_weight=cfg_weight,
             )
             pieces.append(wav.cpu())
-            if i < len(self.chunk(text)) - 1:
+            if i < len(parts) - 1:
                 pieces.append(silence)
         audio = torch.cat(pieces, dim=1)
         out.parent.mkdir(parents=True, exist_ok=True)
