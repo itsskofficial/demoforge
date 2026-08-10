@@ -15,3 +15,6 @@ assets/voice/
 !assets/voice/.gitkeep
 
 *.log
+
+# API keys.
+.env
