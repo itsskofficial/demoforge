@@ -1,0 +1,89 @@
+{
+ "command": [
+  "python",
+  "-m",
+  "demo.loop",
+  "--auto-confirm",
+  "--n",
+  "40"
+ ],
+ "display": "python -m demo.loop --auto-confirm --n 40",
+ "cwd": "D:\\Career\\Technology\\Projects\\livingeval",
+ "started": 1786362619.6055057,
+ "duration": 12.314,
+ "exit_code": 0,
+ "chunks": [
+  [
+   5.6475,
+   "\r\n============================================================================\r\n  1. Before\r\n============================================================================"
+  ],
+  [
+   5.6475,
+   "\r\n"
+  ],
+  [
+   6.2033,
+   "  suite            50 cases"
+  ],
+  [
+   6.2033,
+   "\r\n  coverage week 8  30.0%\r\n  power on rentals 1.2% [0.5%, 2.9%]   (0/50 cases affected)\r\n\r\n============================================================================\r\n  2. Propose: which real traces would close the gap?\r\n============================================================================\r\n"
+  ],
+  [
+   10.8004,
+   "  mining weeks 5-8 (240 traces)"
+  ],
+  [
+   10.801,
+   "\r\n  25 proposals queued for review\r\n    [cluster 5 carries 10.8% of traffic] the sander NR-910 was already damaged when i collect\r\n    [cluster 5 carries 10.8% of traffic] the sander NR-949 was already damaged when i collect\r\n    [cluster 5 carries 10.8% of traffic] the sander NR-954 was already damaged when i collect\r\n    [cluster 5 carries 10.8% of traffic] the sander NR-915 was already damaged when i collect\r\n    [cluster 0 carries 11.7% of traffic] I returned NR-942 — where's my deposit?\r\n\r\n============================================================================\r\n  3. Review\r\n============================================================================\r\n"
+  ],
+  [
+   10.8085,
+   "  !! --auto-confirm: labelling with the judge instead of a human."
+  ],
+  [
+   10.8091,
+   "\r\n     The numbers below are a CEILING - what you would get if every proposal\r\n     survived review - not a result. See the module docstring.\r\n"
+  ],
+  [
+   11.0337,
+   "  confirmed 37"
+  ],
+  [
+   11.0337,
+   "\r\n\r\n============================================================================\r\n  4. Promote\r\n============================================================================\r\n"
+  ],
+  [
+   11.0751,
+   "  promotion  support-week1  ->  87 case(s)\r\n  added 37 confirmed   retired 0   reviewers: demo-auto:37"
+  ],
+  [
+   11.0751,
+   "\r\n"
+  ],
+  [
+   11.0833,
+   "  suite is now 87 cases (was 50)"
+  ],
+  [
+   11.0833,
+   "\r\n\r\n============================================================================\r\n  5. After - same traffic, same regression, same judge\r\n============================================================================\r\n"
+  ],
+  [
+   11.7167,
+   "  coverage week 8   30.0%  ->   60.0%"
+  ],
+  [
+   11.7167,
+   "\r\n  power on rentals   1.2%  ->   43.2% [38.5%, 48.1%]\r\n  cases affected        0  ->      20  of 87\r\n"
+  ],
+  [
+   11.8733,
+   "\r\n  gate is now BLIND (exit 2)"
+  ],
+  [
+   11.8733,
+   "\r\n     score fell by 0.0000 but the paired test does not separate it from noise at n=87 (p=1)\r\n     coverage 60.0% is below 70%: 40% of traffic is unrepresented by this suite\r\n     simulated detection power 43.2% is below 80% for the regression tested\r\n"
+  ]
+ ]
+}

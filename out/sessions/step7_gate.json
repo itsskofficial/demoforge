@@ -1,0 +1,29 @@
+{
+ "command": [
+  "python",
+  "-m",
+  "livingeval.cli",
+  "gate",
+  "--suite",
+  "demo/results/suite.json",
+  "--traces",
+  "demo/results/week8.jsonl",
+  "--judge",
+  "ollama:qwen2.5:7b"
+ ],
+ "display": "python -m livingeval.cli gate --suite demo/results/suite.json --traces demo/results/week8.jsonl --judge ollama:qwen2.5:7b",
+ "cwd": "D:\\Career\\Technology\\Projects\\livingeval",
+ "started": 1786362802.8362467,
+ "duration": 5.206,
+ "exit_code": 2,
+ "chunks": [
+  [
+   4.8385,
+   "gate  BLIND  (exit 2)   mode=threshold\r\n  score 1.0000  (no baseline supplied)\r\n  gateable cases 50\r\n  coverage 30.0%\r\n  - no baseline supplied, so the gate fell back to an absolute threshold - an uncontrolled test rather than a paired one\r\n  ! coverage 30.0% is below 70%: 70% of traffic is unrepresented by this suite"
+  ],
+  [
+   4.8385,
+   "\r\n"
+  ]
+ ]
+}

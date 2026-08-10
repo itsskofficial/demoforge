@@ -1,0 +1,39 @@
+{
+ "command": [
+  "python",
+  "-m",
+  "demo.ask",
+  "Where is my order NW-4143?"
+ ],
+ "display": "python -m demo.ask Where is my order NW-4143?",
+ "cwd": "D:\\Career\\Technology\\Projects\\livingeval",
+ "started": 1786361469.0848603,
+ "duration": 14.285,
+ "exit_code": 0,
+ "chunks": [
+  [
+   4.3368,
+   "\r\n\u001b[1mmodel\u001b[0m    qwen2.5:3b"
+  ],
+  [
+   4.3368,
+   "\r\n\u001b[1mquestion\u001b[0m Where is my order NW-4143?\r\n\r\n"
+  ],
+  [
+   13.7449,
+   "  \u001b[36m-> lookup_order({\"order_id\": \"NW-4143\"})\u001b[0m"
+  ],
+  [
+   13.7449,
+   "\r\n     \u001b[2m{\"order_id\": \"NW-4143\", \"item\": \"mitre saw 210mm\", \"amount_gbp\": 166.13, \"status\": \"packed\", \"placed_on\": \"2026-02-27\", \"delivered_on\": null, \"carrier\": null, \"tracking\": null}\u001b[0m\r\n\r\n\u001b[1manswer\u001b[0m   Your order NW-4143 for a mitre saw 210mm is packed and scheduled to be shipped. It has not been delivered yet as it's still in transit. Please check back later or contact us if you need further assistance.\r\n\u001b[2m         1 tool call(s), 79 tokens, 9.4s\u001b[0m\r\n"
+  ],
+  [
+   13.7449,
+   "\r\n\u001b[31mdatabase checks flagged:\u001b[0m contradicts_tool"
+  ],
+  [
+   13.7449,
+   "\r\n  contradicts_tool: [{\"claimed\": \"in_transit\", \"actual\": \"packed\", \"order\": \"NW-4143\"}]\r\n"
+  ]
+ ]
+}

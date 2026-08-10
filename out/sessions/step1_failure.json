@@ -1,0 +1,51 @@
+{
+ "command": [
+  "python",
+  "-m",
+  "demo.ask",
+  "--failure"
+ ],
+ "display": "python -m demo.ask --failure",
+ "cwd": "D:\\Career\\Technology\\Projects\\livingeval",
+ "started": 1786361483.5947452,
+ "duration": 5.145,
+ "exit_code": 0,
+ "chunks": [
+  [
+   4.8333,
+   "\r\n  12 of 480 recorded answers contradict their own tool output.\r\n"
+  ],
+  [
+   4.8333,
+   "\r\n\u001b[1mquestion\u001b[0m  how long till NW-4064 gets here\r\n\u001b[36mdatabase\u001b[0m  NW-4064 is \u001b[1mreturned\u001b[0m\r\n\u001b[1manswer\u001b[0m    NW-4064 has been returned and is no longer expected to arrive. It was delivered on 01/04/2026.\r\n\u001b[31m          -> claimed 'delivered', the row says 'returned'\u001b[0m\r\n\r\n\u001b[1mquestion\u001b[0m  I need to cancel order NW-4030 if it's not gone out yet.\r\n\u001b[36mdatabase\u001b[0m  NW-4030 is \u001b[1mdelivered\u001b[0m\r\n\u001b[1manswer\u001b[0m    The order NW-4030 has already been delivered and cannot be cancelled as it's already out for delivery. Please note that the router table is now with Evri, tracking number EV9891061325."
+  ],
+  [
+   4.8333,
+   "\r\n"
+  ],
+  [
+   4.8333,
+   "\u001b[31m          -> claimed 'in_transit', the row says 'delivered'\u001b[0m\r\n"
+  ],
+  [
+   4.8333,
+   "\r\n"
+  ],
+  [
+   4.8333,
+   "\u001b[1mquestion\u001b[0m  NW-4232 doesn't fit my workbench. Return possible?"
+  ],
+  [
+   4.8333,
+   "\r\n\u001b[36mdatabase\u001b[0m  NW-4232 is \u001b[1mreturned\u001b[0m"
+  ],
+  [
+   4.8333,
+   "\r\n\u001b[1manswer\u001b[0m    The router table you returned as order NW-4232 was processed and is now in your possession. It was delivered on 2026-03-26 via Royal Mail with tracking number RO3717382102.\r\n"
+  ],
+  [
+   4.8333,
+   "\u001b[31m          -> claimed 'delivered', the row says 'returned'\u001b[0m\r\n\r\n"
+  ]
+ ]
+}

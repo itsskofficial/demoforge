@@ -1,0 +1,54 @@
+{
+ "command": [
+  "python",
+  "-m",
+  "demo.loop"
+ ],
+ "display": "python -m demo.loop",
+ "cwd": "D:\\Career\\Technology\\Projects\\livingeval",
+ "started": 1786361493.5187092,
+ "duration": 8.986,
+ "exit_code": 0,
+ "chunks": [
+  [
+   4.1228,
+   "\r\n============================================================================\r\n  1. Before\r\n============================================================================"
+  ],
+  [
+   4.1228,
+   "\r\n"
+  ],
+  [
+   4.4184,
+   "  suite            50 cases"
+  ],
+  [
+   4.4184,
+   "\r\n  coverage week 8  30.0%\r\n  power on rentals 1.2% [0.5%, 2.9%]   (0/50 cases affected)\r\n\r\n============================================================================\r\n  2. Propose: which real traces would close the gap?\r\n============================================================================\r\n"
+  ],
+  [
+   8.6887,
+   "  mining weeks 5-8 (240 traces)"
+  ],
+  [
+   8.6893,
+   "\r\n  12 proposals queued for review\r\n    [cluster 5 carries 10.8% of traffic] the sander NR-910 was already damaged when i collect\r\n    [cluster 5 carries 10.8% of traffic] the sander NR-949 was already damaged when i collect\r\n    [cluster 0 carries 11.7% of traffic] I returned NR-942 — where's my deposit?\r\n    [cluster 0 carries 11.7% of traffic] I've lost my order number. Account is tom.dubois@exa\r\n    [cluster 7 carries 10.4% of traffic] I'm going to be a day late returning NR-934. What ha"
+  ],
+  [
+   8.6893,
+   "\r\n\r\n============================================================================\r\n  3. Review\r\n============================================================================"
+  ],
+  [
+   8.6893,
+   "\r\n"
+  ],
+  [
+   8.6933,
+   "  12 cases waiting for a human at http://127.0.0.1:8000/review"
+  ],
+  [
+   8.6933,
+   "\r\n  start it with:  python scripts/dev.py serve\r\n\r\n  Nothing enters the suite until someone clicks. That is deliberate —\r\n  a suite labelled entirely by the judge it is used to check is circular.\r\n\r\n  To see the rest of the loop now:  python -m demo.loop --auto-confirm\r\n"
+  ]
+ ]
+}

@@ -1,0 +1,17 @@
+.venv/
+__pycache__/
+*.pyc
+
+# Rendered output. Segments and masters are large and reproducible from the
+# captures, which are small — those are worth keeping, the video is not.
+out/segments/
+out/audio/
+out/*.mp4
+out/_browser_raw/
+
+# Voice references are a person's biometric data. They stay on the machine
+# that recorded them, and they are never committed anywhere.
+assets/voice/
+!assets/voice/.gitkeep
+
+*.log

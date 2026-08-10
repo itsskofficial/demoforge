@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "demoforge"
+version = "0.1.0"
+description = "Product demo videos assembled from a screen recording, a voice and a face"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+authors = [{ name = "Sarthak Karandikar" }]
+
+# The recorder half only needs Pillow and ffmpeg on PATH. Everything heavier is
+# an extra, so cloning a repo to re-render a segment does not pull a GPU stack.
+dependencies = ["pillow>=10"]
+
+[project.optional-dependencies]
+browser = ["playwright>=1.40"]
+voice = ["chatterbox-tts>=0.1.7"]
+all = ["playwright>=1.40", "chatterbox-tts>=0.1.7"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100

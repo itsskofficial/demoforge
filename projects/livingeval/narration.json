@@ -1,0 +1,56 @@
+[
+ {
+  "id": "s1_app",
+  "segment": "s1_app",
+  "budget": 46.0,
+  "text": "This is a support chatbot for a hardware shop. Someone asks about their order, the bot looks it up in a real database, and answers. That's the whole app. I ran four hundred and eighty of these. Here's one it got wrong. A customer wants to cancel an order. The database says that order is delivered. The bot says: it has already been delivered and cannot be cancelled, as it's already out for delivery. Delivered, or out for delivery? It can't be both, and it just said both in one sentence. It read the right row and made something up on top of it. That's twelve out of four hundred and eighty. Nobody planted them. That's just a small model being a small model. This is the kind of bug I want my tests to catch."
+ },
+ {
+  "id": "s2_suite",
+  "segment": "s2_suite",
+  "budget": 9.0,
+  "text": "So I did the obvious thing. I took fifty real conversations from my first week, checked each answer by hand, and saved them. That's an eval. It's just saved examples with known-good answers. Like unit tests, but for a chatbot. I run them before every deploy. They pass. Life is good."
+ },
+ {
+  "id": "s3_drift",
+  "segment": "s3_drift",
+  "budget": 12.2,
+  "text": "Two months later the shop starts renting out tools. Cement mixers, floor sanders. Deposits, late fees, damage charges. A whole new kind of question. By week eight, half my traffic is rentals. My tests have zero rental examples. I wrote them before rentals existed. And they still pass. Every single time. Because they're still asking week one's fifty questions, and the bot is still fine at those."
+ },
+ {
+  "id": "s4_measure",
+  "segment": "s4_measure",
+  "budget": 88.0,
+  "text": "First thing it asks: how much of this week's traffic do my tests actually look like? Week one, seventy seven percent. Makes sense, that's where they came from. Week eight, thirty percent. Seventy percent of what people ask me now looks nothing like anything I test. Second thing, and this is the one that got me. It asks: if the bot got worse at rentals tomorrow, would my tests notice? It breaks the bot on purpose, four hundred times over, and counts how often the tests go red. One point two percent. And look why. Zero of my fifty tests are about rentals. You can't catch a bug in something you never test. That first line is what every testing tool tells me. Nothing broke. Ship it. The next two say: no, you don't get to conclude that. Your tests can't see most of your traffic, and they'd miss this bug ninety nine times out of a hundred. So there's a third answer, next to pass and fail. Blind. Not you're fine, but I can't tell, and here's the number that says why."
+ },
+ {
+  "id": "s5a_propose",
+  "segment": "s5a_propose",
+  "budget": 40.0,
+  "text": "Okay, it found a hole. Now what? This is the part I actually like. It went back through my real traffic, found the conversations my tests can't see, and picked out the ones worth adding. These are real conversations. Real customers, real questions. It didn't invent them. And I never typed the word rentals anywhere. It worked that out from the traffic."
+ },
+ {
+  "id": "s5b_review",
+  "segment": "s5b_review",
+  "budget": 36.9,
+  "text": "They land in a review queue, and I go through them. Was the bot right, or wrong? Click. Nothing gets added until a person says so. That's on purpose. If I let the AI grade its own homework, and then used that to check the AI, I've proved nothing."
+ },
+ {
+  "id": "s5c_promote",
+  "segment": "s5c_promote",
+  "budget": 70.0,
+  "text": "I'll let it auto approve so we're not here all day. It warns me that's cheating, and it is. Then it adds them to my test suite and measures the exact same traffic again. Coverage: thirty to sixty. Would it catch that rentals bug? It was one percent. Now it's forty three. Same traffic, same bug, same everything. My tests just aren't blind any more. And it's honest about it. Still blind, but for two reasons now instead of three, and both of them are just not enough yet, rather than can't see it at all. It's telling me to keep going, and telling me exactly how far."
+ },
+ {
+  "id": "s7_dashboard",
+  "segment": "s7_dashboard",
+  "budget": 22.1,
+  "text": "It reads the traces you already have. Langfuse, OpenTelemetry, or a JSONL file. You don't add any tracking code. The data's already there, nobody's asking the right question of it. There's this dashboard and the review queue, running locally."
+ },
+ {
+  "id": "s7_ci",
+  "segment": "s7_ci",
+  "budget": 34.0,
+  "text": "And in CI it just exits non-zero and fails your build. Everything runs on your machine. Local database, local models. Costs nothing. Everyone knows tests go stale. Nobody has a number for how stale yours are right now. That's the whole thing."
+ }
+]

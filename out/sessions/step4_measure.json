@@ -1,0 +1,215 @@
+{
+ "command": [
+  "python",
+  "-m",
+  "demo.run",
+  "measure"
+ ],
+ "display": "python -m demo.run measure",
+ "cwd": "D:\\Career\\Technology\\Projects\\livingeval",
+ "started": 1786361872.900487,
+ "duration": 17.119,
+ "exit_code": 0,
+ "chunks": [
+  [
+   4.4896,
+   "  480 traces, 480 sessions"
+  ],
+  [
+   4.4896,
+   "\r\n"
+  ],
+  [
+   4.4896,
+   "  judge: ollama:qwen2.5:7b"
+  ],
+  [
+   4.4896,
+   "\r\n\r\n============================================================================\r\n  1. Curating the suite from week 1\r\n============================================================================\r\n"
+  ],
+  [
+   4.5145,
+   "  50 cases from week 1 (14 the judge marked FAIL, 28%) in 0s"
+  ],
+  [
+   4.5145,
+   "\r\n\r\n  a sample of the judge's reasoning:\r\n"
+  ],
+  [
+   4.5145,
+   "    Q: how long till NW-4288 gets here\r\n    A: It has been delivered and should be available now."
+  ],
+  [
+   4.5145,
+   "\r\n    -> FAIL: The order status is 'delivered', so the agent should not claim it will arrive.\r\n\r\n"
+  ],
+  [
+   4.5145,
+   "    Q: how long till NW-4064 gets here"
+  ],
+  [
+   4.5145,
+   "\r\n    A: NW-4064 has been returned and is no longer expected to arrive. It was delivered on 01/04\r\n    -> FAIL: The assistant stated that the order is no longer expected to arrive, which is not accurate given its status as\r\n\r\n    Q: how do i return NW-4116"
+  ],
+  [
+   4.5145,
+   "\r\n    A: Your order NW-4116 for the stud detector has been delivered. It was placed on 2026-01-22\r\n"
+  ],
+  [
+   4.5145,
+   "    -> FAIL: The order status is 'delivered', so returning it would be inappropriate based on factual claims.\r\n\r\n"
+  ],
+  [
+   4.5151,
+   "    Q: warranty claim for NW-4318 — what do I do"
+  ],
+  [
+   4.5151,
+   "\r\n    A: For the warranty claim of your router table (NW-4318), you should contact customer suppo\r\n    -> FAIL: The assistant did not directly address the user's request for a warranty claim.\r\n\r\n\r\n============================================================================\r\n  2. Coverage: how much of each week the suite still resembles\r\n============================================================================\r\n"
+  ],
+  [
+   4.5304,
+   "  week 1  n=60    76.7%  ███████████████████████████████"
+  ],
+  [
+   4.5304,
+   "\r\n"
+  ],
+  [
+   4.5544,
+   "  week 2  n=60    41.7%  █████████████████"
+  ],
+  [
+   4.5544,
+   "\r\n"
+  ],
+  [
+   4.5717,
+   "  week 3  n=60    45.0%  ██████████████████"
+  ],
+  [
+   4.5717,
+   "\r\n"
+  ],
+  [
+   4.5877,
+   "  week 4  n=60    58.3%  ███████████████████████"
+  ],
+  [
+   4.5877,
+   "\r\n"
+  ],
+  [
+   4.6045,
+   "  week 5  n=60    35.0%  ██████████████"
+  ],
+  [
+   4.6045,
+   "\r\n"
+  ],
+  [
+   4.6209,
+   "  week 6  n=60    33.3%  █████████████"
+  ],
+  [
+   4.6209,
+   "\r\n"
+  ],
+  [
+   4.639,
+   "  week 7  n=60    35.0%  ██████████████"
+  ],
+  [
+   4.639,
+   "\r\n"
+  ],
+  [
+   4.6592,
+   "  week 8  n=60    30.0%  ████████████"
+  ],
+  [
+   4.6592,
+   "\r\n\r\n============================================================================\r\n  3. Detection power: could this suite see a rentals regression?\r\n============================================================================\r\n"
+  ],
+  [
+   4.6592,
+   "  baseline agreement with the frozen labels 100.0%"
+  ],
+  [
+   4.6592,
+   "\r\n  expected on a rerun 95.0% (a suite is never scored twice the same — see DECISIONS.md #7)\r\n"
+  ],
+  [
+   4.8946,
+   "  a regression on rentals          power   1.2% [0.5%, 2.9%]   (0/50 cases)  <- no case in the suite is affected at all"
+  ],
+  [
+   4.8946,
+   "\r\n"
+  ],
+  [
+   5.2916,
+   "  a regression on order status     power  32.0% [27.6%, 36.7%]   (16/50 cases)"
+  ],
+  [
+   5.2926,
+   "\r\n"
+  ],
+  [
+   5.5877,
+   "  a regression everywhere          power  46.5% [41.7%, 51.4%]   (50/50 cases)"
+  ],
+  [
+   5.5877,
+   "\r\n"
+  ],
+  [
+   5.8335,
+   "  false alarms (nothing changed)   rate    0.5% [0.1%, 1.8%]"
+  ],
+  [
+   5.8335,
+   "\r\n\r\n============================================================================\r\n  3b. The control: the same suite, curated from week 8 instead\r\n============================================================================\r\n"
+  ],
+  [
+   6.3668,
+   "  refreshed suite: 50 cases from week 8"
+  ],
+  [
+   6.3668,
+   "\r\n  power on the same regression      73.8% [69.2%, 77.8%]   (26/50 cases)\r\n  coverage of week 8                93.3%\r\n\r\n============================================================================\r\n  4. Judge depth: how cheap a scorer reproduces this judge?\r\n============================================================================\r\n  480 traces, 5-fold CV grouped by session\r\n"
+  ],
+  [
+   13.7368,
+   "  majority     kappa  0.000 [0.000, 0.000]  acc 0.671"
+  ],
+  [
+   13.7368,
+   "\r\n  length       kappa  0.179 [0.093, 0.262]  acc 0.690\r\n  keyword      kappa  0.117 [0.056, 0.187]  acc 0.694\r\n               \u001b[2m\"refund\" present -> fail\u001b[0m\r\n  bow          kappa  0.461 [0.372, 0.539]  acc 0.756\r\n  charngram    kappa  0.340 [0.254, 0.424]  acc 0.700\r\n\r\n  No rung below the judge reproduces it. Per-turn online scoring needs a real model - and the judge is doing something a bag of features cannot. Re-run with `finetune=True` to find out whether a fine-tuned model can.\r\n  (7s)\r\n\r\n============================================================================\r\n  5. The gate on week 8\r\n============================================================================\r\n"
+  ],
+  [
+   13.8846,
+   "  coverage 30.0%   power 1.2%"
+  ],
+  [
+   13.885,
+   "\r\n  -> BLIND  (exit 2)\r\n     score fell by 0.0000 but the paired test does not separate it from noise at n=50 (p=1)\r\n     coverage 30.0% is below 70%: 70% of traffic is unrepresented by this suite\r\n     simulated detection power 1.2% is below 80% for the regression tested\r\n\r\n============================================================================\r\n  6. What the suite is blind to\r\n============================================================================\r\n"
+  ],
+  [
+   16.7981,
+   "  cluster 2: 15 traces (25% of the week), coverage 13%, 4 suite cases"
+  ],
+  [
+   16.7981,
+   "\r\n     terms: back, the, on, rental, was\r\n  cluster 1: 11 traces (18% of the week), coverage 9%, 3 suite cases\r\n     terms: do, do need, need to, need, return nr\r\n  cluster 3: 17 traces (28% of the week), coverage 41%, 9 suite cases\r\n     terms: what, nw, it, cancel, still\r\n  cluster 0: 6 traces (10% of the week), coverage 17%, 13 suite cases\r\n     terms: my, where, returned nr, where my, my deposit\r\n  cluster 5: 3 traces (5% of the week), coverage 0%, 3 suite cases\r\n     terms: shipped, this shipped, shipped yet, this, has\r\n"
+  ],
+  [
+   16.8018,
+   "  wrote demo\\results\\measurements.json"
+  ],
+  [
+   16.8018,
+   "\r\n"
+  ]
+ ]
+}
