@@ -130,10 +130,14 @@ to change.
 ```bash
 python -m demoforge.face loop --src assets/face/driver.mp4 --seconds 200
 python -m demoforge.face sync --video assets/face/driver-long.mp4 \
-    --audio out/narration-timeline.wav --out out/head.mp4
+    --audio out/narration-timeline.wav --out out/head.mp4 --chunk 20 --width 512
 python -m demoforge.compose --base out/master.mp4 --head out/head.mp4 \
     --out out/final.mp4
 ```
+
+`--chunk 20 --width 512` is not optional for anything over about thirty
+seconds: LatentSync decodes the whole driver into one array first, and a
+three-minute 720p clip is 11.5 GiB of RAM before the GPU does anything.
 
 Lip-sync runs at roughly 20× realtime on an 8 GB GPU — a three-minute demo is
 about an hour. Leave it running.

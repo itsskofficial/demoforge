@@ -75,6 +75,34 @@ consumer GPU** — ten seconds of video takes around three and a half minutes, a
 a three-minute demo is over an hour. So: lock the script, lock the voice, *then*
 run the face pass once. Never iterate through it.
 
+## Anything over about thirty seconds must be chunked
+
+The limit you hit first is **system RAM, not VRAM**. LatentSync decodes the
+entire driver into one numpy array before it starts. At 720×1280 that is
+
+    frames × height × width × 3 bytes
+
+so a three-minute clip is 4,450 × 1280 × 720 × 3 ≈ **11.5 GiB**, and a 16 GB
+laptop cannot allocate it. The failure is `numpy._core._exceptions.
+_ArrayMemoryError`, well before the GPU does any work.
+
+```bash
+python -m demoforge.face sync --video driver-long.mp4 --audio timeline.wav \
+    --out head.mp4 --chunk 20 --width 512
+```
+
+Two things fix it together:
+
+- **`--chunk 20`** bounds the array to one twenty-second window at a time. The
+  chunks are independent, so a failure costs one chunk rather than the run, and
+  a re-run skips what already succeeded.
+- **`--width 512`** is the bigger lever than it looks. The presenter ends up as
+  a ~340px inset, so driving at 512 wide is already oversampled — and it costs a
+  quarter of the memory and roughly a quarter of the time of 1080p.
+
+Chunk boundaries are inaudible because each chunk is lip-synced against its own
+slice of the same continuous audio; the mouth does not reset at the seam.
+
 ## Setup traps on Windows and consumer GPUs
 
 - **Triton.** Recent torch routes parts of the UNet through inductor, which

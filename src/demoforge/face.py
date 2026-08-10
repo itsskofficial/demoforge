@@ -150,6 +150,56 @@ def sync(video: Path, audio: Path, out: Path, steps: int = 20,
     return out
 
 
+def sync_chunked(video: Path, audio: Path, out: Path, chunk: float = 20.0,
+                 steps: int = 20, guidance: float = 1.5, width: int = 512,
+                 workdir: Path | None = None) -> Path:
+    """Lip-sync a long track in pieces, then join them.
+
+    LatentSync decodes the whole driver into one numpy array before it starts:
+    at 720x1280 a three-minute clip is 11.5 GiB, which a 16 GB laptop cannot
+    allocate. Chunking bounds that, and the pieces are independent so a failure
+    halfway costs one chunk rather than the run.
+
+    Resolution matters more than it looks: the presenter ends up as a ~340px
+    inset, so driving at 512 wide is already oversampled and costs a quarter of
+    the memory of 1080p.
+    """
+    workdir = workdir or out.parent / f"_{out.stem}_chunks"
+    workdir.mkdir(parents=True, exist_ok=True)
+    total = duration(audio)
+    pieces, at, index = [], 0.0, 0
+
+    while at < total - 0.05:
+        span = min(chunk, total - at)
+        a_part = workdir / f"a{index:03d}.wav"
+        v_part = workdir / f"v{index:03d}.mp4"
+        o_part = workdir / f"o{index:03d}.mp4"
+        subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-ss", f"{at:.3f}",
+                        "-t", f"{span:.3f}", "-i", str(audio), "-ac", "1",
+                        "-ar", "16000", str(a_part)], check=True)
+        subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-ss", f"{at:.3f}",
+                        "-t", f"{span:.3f}", "-i", str(video),
+                        "-vf", f"scale={width}:-2,fps={FPS}", "-an",
+                        "-c:v", "libx264", "-crf", "18", "-preset", "medium",
+                        "-pix_fmt", "yuv420p", str(v_part)], check=True)
+        if not o_part.exists():
+            print(f"  chunk {index}  {at:.0f}s -> {at + span:.0f}s")
+            sync(v_part, a_part, o_part, steps, guidance)
+        pieces.append(o_part)
+        at += span
+        index += 1
+
+    listing = workdir / "parts.txt"
+    listing.write_text("".join(f"file '{p.resolve().as_posix()}'\n" for p in pieces),
+                       encoding="utf-8")
+    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "concat", "-safe", "0",
+                    "-i", str(listing), "-c:v", "libx264", "-crf", "18",
+                    "-preset", "medium", "-pix_fmt", "yuv420p", "-r", str(FPS),
+                    "-an", str(out)], check=True)
+    print(f"  lipsync  {out.name}  {duration(out):.1f}s  ({len(pieces)} chunks)")
+    return out
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -174,12 +224,18 @@ def main() -> int:
     s.add_argument("--steps", type=int, default=20)
     s.add_argument("--guidance", type=float, default=1.5)
     s.add_argument("--config", default=None)
+    s.add_argument("--chunk", type=float, default=0.0,
+                   help="seconds per chunk; required for anything over ~30s")
+    s.add_argument("--width", type=int, default=512, help="driver width when chunking")
 
     args = ap.parse_args()
     if args.cmd == "prepare":
         prepare(Path(args.src), Path(args.out), args.start, args.dur, args.width)
     elif args.cmd == "loop":
         loop(Path(args.src), Path(args.out), args.seconds)
+    elif args.chunk:
+        sync_chunked(Path(args.video), Path(args.audio), Path(args.out),
+                     args.chunk, args.steps, args.guidance, args.width)
     else:
         sync(Path(args.video), Path(args.audio), Path(args.out), args.steps,
              args.guidance, config=Path(args.config) if args.config else None)
