@@ -3,10 +3,11 @@
 The presenter is a circular inset with a soft ring, bottom-right by default.
 Two details matter more than they sound:
 
-* **The inset is cropped to the face, not the frame.** A phone video is
-  portrait; dropping it whole into a corner wastes most of the circle on
-  chest and ceiling. The crop is centred on the upper third, where a head
-  filmed at arm's length actually sits.
+* **The inset frames the head, not the frame.** A phone video is portrait, and
+  a square crop of it is only as wide as the video -- so a head filmed at arm's
+  length fills the square and a circle inscribed in it slices the jaw off. The
+  head is scaled to fit the circle's height instead, and the gap at the sides is
+  filled with a blurred copy of the same frame.
 
 * **The head only appears while it is speaking.** Lip-sync models regenerate
   the mouth over silence too, and the original footage underneath is someone
@@ -33,7 +34,9 @@ for _stream in (sys.stdout, sys.stderr):
 
 SIZE = 340          # diameter of the inset
 MARGIN = 56
-FACE_BIAS = 0.30    # centre of the crop, as a fraction down the source frame
+# Centre of the square crop, as a fraction down the source frame. A head filmed
+# at arm's length on a phone sits around 40% down; 0.30 crops to the forehead.
+FACE_BIAS = 0.46
 
 
 def duration(path: Path) -> float:
@@ -43,8 +46,14 @@ def duration(path: Path) -> float:
         capture_output=True, text=True, check=True).stdout.strip())
 
 
-def circle_mask(size: int, ring: int = 6) -> Path:
-    """A PNG mask with a soft edge, generated once and reused by ffmpeg."""
+def circle_mask(size: int) -> Path:
+    """A greyscale circle, generated once and reused by ffmpeg.
+
+    Greyscale on purpose: ffmpeg's `alphamerge` takes the **luma** of its second
+    input as the alpha channel, not that input's own alpha. Handing it a white
+    RGBA image with a circular alpha channel produces a fully opaque square,
+    which is exactly what it looks like.
+    """
     from PIL import Image, ImageDraw, ImageFilter
 
     path = OUT / f"_mask{size}.png"
@@ -53,30 +62,47 @@ def circle_mask(size: int, ring: int = 6) -> Path:
     scale = 4
     big = Image.new("L", (size * scale, size * scale), 0)
     ImageDraw.Draw(big).ellipse([0, 0, size * scale - 1, size * scale - 1], fill=255)
-    mask = big.resize((size, size), Image.LANCZOS).filter(ImageFilter.GaussianBlur(1.2))
-    rgba = Image.new("RGBA", (size, size), (255, 255, 255, 0))
-    rgba.putalpha(mask)
+    mask = big.resize((size, size), Image.LANCZOS).filter(ImageFilter.GaussianBlur(1.1))
     path.parent.mkdir(parents=True, exist_ok=True)
-    rgba.save(path)
+    mask.convert("L").save(path)
     return path
 
 
-def head_clip(head: Path, out: Path, size: int = SIZE, bias: float = FACE_BIAS) -> Path:
-    """Crop the presenter to a square centred on the face, then round it off."""
+def head_clip(head: Path, out: Path, size: int = SIZE, bias: float = FACE_BIAS,
+              zoom: float = 0.66) -> Path:
+    """Fit the presenter's head into a circle, blurred fill at the sides.
+
+    `zoom` is how much of the circle's height the head should occupy: lower
+    shows more around it. 0.66 keeps hair and chin inside the circle for a
+    typical arm's-length selfie.
+    """
     probe = subprocess.run(
         ["ffprobe", "-v", "error", "-select_streams", "v:0",
          "-show_entries", "stream=width,height", "-of", "csv=p=0", str(head)],
         capture_output=True, text=True, check=True).stdout.strip().split(",")
     w, h = int(probe[0]), int(probe[1])
-    side = min(w, h)
-    x = (w - side) // 2
-    y = max(0, min(h - side, int(h * bias - side / 2)))
+
+    # Foreground: a region taller than the frame is wide, so the whole head fits
+    # with air above the hair and below the chin. Scaled to the circle's height,
+    # it is narrower than the circle.
+    tall = min(h, int(w / max(0.4, min(1.0, zoom)))) // 2 * 2
+    y_fg = max(0, min(h - tall, int(h * bias - tall / 2)))
+
+    # Background: the same frame, cropped square and blurred, filling the gap at
+    # the sides. A flat colour cannot match a wall with a gradient on it and
+    # leaves two vertical seams; a blurred copy of the wall always matches.
+    square = min(w, h)
+    y_bg = max(0, min(h - square, int(h * bias - square / 2)))
 
     mask = circle_mask(size)
     subprocess.run(
         ["ffmpeg", "-y", "-loglevel", "error", "-i", str(head), "-i", str(mask),
          "-filter_complex",
-         f"[0:v]crop={side}:{side}:{x}:{y},scale={size}:{size},format=rgba[c];"
+         f"[0:v]split=2[a][b];"
+         f"[a]crop={square}:{square}:{(w - square) // 2}:{y_bg},"
+         f"scale={size}:{size},boxblur=22:2[bg];"
+         f"[b]crop={w}:{tall}:0:{y_fg},scale=-2:{size}[fg];"
+         f"[bg][fg]overlay=(W-w)/2:0,format=rgba[c];"
          f"[c][1:v]alphamerge[out]",
          "-map", "[out]", "-c:v", "qtrle", "-an", str(out)],
         check=True)
@@ -85,10 +111,10 @@ def head_clip(head: Path, out: Path, size: int = SIZE, bias: float = FACE_BIAS) 
 
 def compose(base: Path, head: Path, out: Path, size: int = SIZE, margin: int = MARGIN,
             corner: str = "br", show: list[tuple[float, float]] | None = None,
-            bias: float = FACE_BIAS) -> Path:
+            bias: float = FACE_BIAS, zoom: float = 0.66) -> Path:
     """Overlay `head` on `base`. `show` is a list of (start, end) to appear in."""
     rounded = out.with_suffix(".head.mov")
-    head_clip(head, rounded, size, bias)
+    head_clip(head, rounded, size, bias, zoom)
 
     x = margin if corner in ("bl", "tl") else WIDTH - size - margin
     y = margin if corner in ("tl", "tr") else HEIGHT - size - margin
@@ -145,13 +171,15 @@ def main() -> int:
     ap.add_argument("--margin", type=int, default=MARGIN)
     ap.add_argument("--corner", default="br", choices=["br", "bl", "tr", "tl"])
     ap.add_argument("--bias", type=float, default=FACE_BIAS)
+    ap.add_argument("--zoom", type=float, default=0.66,
+                    help="lower shows more around the head")
     ap.add_argument("--windows", default=None,
                     help="JSON list of [start,end] pairs the head appears in")
     args = ap.parse_args()
 
     show = json.loads(Path(args.windows).read_text(encoding="utf-8")) if args.windows else None
     compose(Path(args.base), Path(args.head), Path(args.out), args.size,
-            args.margin, args.corner, show, args.bias)
+            args.margin, args.corner, show, args.bias, args.zoom)
     return 0
 
 
