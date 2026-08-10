@@ -88,11 +88,17 @@ def loop(src: Path, out: Path, seconds: float, fps: int = FPS) -> Path:
 
     cycle = out.with_suffix(".cycle.mp4")
     listing = out.with_suffix(".txt")
-    listing.write_text(f"file '{src.as_posix()}'\nfile '{reversed_clip.as_posix()}'\n",
-                       encoding="utf-8")
+    # Absolute: the concat demuxer resolves relative entries against the
+    # listing file's own directory, not the working directory.
+    listing.write_text(
+        f"file '{src.resolve().as_posix()}'\nfile '{reversed_clip.resolve().as_posix()}'\n",
+        encoding="utf-8")
+    # Re-encoded rather than stream-copied: the reversed clip comes back with a
+    # different timebase, and concat -c copy refuses to join the two.
     subprocess.run(
         ["ffmpeg", "-y", "-loglevel", "error", "-f", "concat", "-safe", "0",
-         "-i", str(listing), "-c", "copy", str(cycle)],
+         "-i", str(listing), "-c:v", "libx264", "-crf", "18", "-preset", "medium",
+         "-pix_fmt", "yuv420p", "-r", str(fps), str(cycle)],
         check=True)
 
     repeats = max(1, int(seconds / duration(cycle)) + 1)

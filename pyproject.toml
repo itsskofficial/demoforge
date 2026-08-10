@@ -4,21 +4,38 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "demoforge"
-version = "0.1.0"
-description = "Product demo videos assembled from a screen recording, a voice and a face"
+version = "0.2.0"
+description = "Product demo videos that rebuild themselves: screen capture, a cloned voice, and your face in the corner"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "Apache-2.0" }
 authors = [{ name = "Sarthak Karandikar" }]
+keywords = ["demo", "video", "screencast", "text-to-speech", "lip-sync", "voice-cloning"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: Apache Software License",
+  "Programming Language :: Python :: 3",
+  "Topic :: Multimedia :: Video",
+]
 
-# The recorder half only needs Pillow and ffmpeg on PATH. Everything heavier is
-# an extra, so cloning a repo to re-render a segment does not pull a GPU stack.
+# The recorder half needs Pillow and ffmpeg on PATH, nothing else. Everything
+# heavier is an extra, so cloning this to re-render one segment does not pull a
+# GPU stack down with it.
 dependencies = ["pillow>=10"]
 
 [project.optional-dependencies]
 browser = ["playwright>=1.40"]
 voice = ["chatterbox-tts>=0.1.7"]
+plan = []
 all = ["playwright>=1.40", "chatterbox-tts>=0.1.7"]
+
+[project.scripts]
+demoforge = "demoforge.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/itsskofficial/demoforge"
+Issues = "https://github.com/itsskofficial/demoforge/issues"
 
 [tool.setuptools.packages.find]
 where = ["src"]

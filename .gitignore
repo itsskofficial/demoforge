@@ -22,3 +22,6 @@ assets/voice/
 # Vendored third-party model code and weights.
 vendor/
 assets/face/
+
+# Rendered demo output for the bundled example.
+out/

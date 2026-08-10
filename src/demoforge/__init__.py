@@ -14,4 +14,4 @@ Nothing here knows what it is recording. A *project profile* under
 `projects/<name>/` supplies the commands, the pacing and the running order.
 """
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"

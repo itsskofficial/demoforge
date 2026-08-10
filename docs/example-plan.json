@@ -1,0 +1,115 @@
+{
+ "product": "livingeval: a measurement layer that tells you when your AI test suite has stopped being able to catch problems",
+ "problem": "Teams freeze a set of test cases for their AI agent, watch it pass forever, and never find out the suite quietly stopped matching what users actually ask",
+ "audience": "developers who have never heard of evals",
+ "scenes": [
+  {
+   "id": "s01_hook",
+   "narration": "You ship an update to your AI agent. Your test suite passes, green across the board. Then a real customer gets a wrong answer about their refund, and nothing in your tests ever caught it.",
+   "visual": "card",
+   "command": null,
+   "url": null,
+   "headline": "Tests pass. Users still get burned.",
+   "note": "Split screen: green CI checkmark on left, a frustrated customer chat bubble on right"
+  },
+  {
+   "id": "s02_why",
+   "narration": "Here is why. Most AI test suites are hand written once, then frozen. When your product changes, or people start asking new kinds of questions, the suite never notices. It just keeps grading against a world that no longer exists.",
+   "visual": "card",
+   "command": null,
+   "url": null,
+   "headline": "Your suite is frozen in time",
+   "note": "Simple calendar graphic, suite pinned to an old date while a traffic line drifts away"
+  },
+  {
+   "id": "s03_gate_blind",
+   "narration": "Livingeval catches this directly. Run its gate command against your suite and your live traffic. Instead of a simple pass or fail, it can tell you the suite has actually gone blind.",
+   "visual": "terminal",
+   "command": "livingeval gate --suite suite.json --traces 'traces/*.jsonl'",
+   "url": null,
+   "headline": "Meet the third outcome: BLIND",
+   "note": "Terminal prints '-> BLIND (exit 2)' with the reasons listed below it"
+  },
+  {
+   "id": "s04_blind_meaning",
+   "narration": "Blind means something precise. No regression was detected, and this suite could not have detected one anyway. That is a completely different situation than actually passing, and now your pipeline can treat it differently.",
+   "visual": "card",
+   "command": null,
+   "url": null,
+   "headline": "PASS, FAIL, or BLIND",
+   "note": "Three labeled boxes: PASS exit zero, FAIL exit one, BLIND exit two"
+  },
+  {
+   "id": "s05_coverage",
+   "narration": "One command shows you why. Coverage measures how much of today's real traffic your suite actually resembles. Here it falls from seventy seven percent down to thirty percent the week a new feature launched.",
+   "visual": "terminal",
+   "command": "livingeval coverage --suite suite.json --traces 'traces/*.jsonl'",
+   "url": null,
+   "headline": "Coverage: does the suite still fit?",
+   "note": "Terminal shows a week-by-week bar chart of coverage percentages dropping"
+  },
+  {
+   "id": "s06_blindspots",
+   "narration": "Next question: what is the suite actually missing? Running blindspots clusters real traffic on its own. Nobody typed the word rental anywhere, but the tool found that exact gap, ranked by how much traffic it carries.",
+   "visual": "terminal",
+   "command": "livingeval blindspots --suite suite.json --traces 'traces/*.jsonl'",
+   "url": null,
+   "headline": "It finds the gap you didn't name",
+   "note": "Terminal lists ranked clusters with keywords like 'rental', 'deposit', 'return'"
+  },
+  {
+   "id": "s07_power",
+   "narration": "Here is the sharpest question of all. If your agent quietly got worse on that new feature, would your test suite even notice? On the old suite, the honest answer was one point two percent of the time.",
+   "visual": "card",
+   "command": null,
+   "url": null,
+   "headline": "Would your gate even fire?",
+   "note": "A red alarm bell with a tiny needle barely moving, labeled 'detection power'"
+  },
+  {
+   "id": "s08_ladder",
+   "narration": "One more thing worth checking. Is your AI judge actually reading the answer, or just matching a keyword? Livingeval's ladder command tests cheap scorers against your real judge to find out.",
+   "visual": "terminal",
+   "command": "livingeval ladder --suite suite.json --judge openai:gpt-4o-mini",
+   "url": null,
+   "headline": "Is your judge actually reading?",
+   "note": "Terminal table ranking scorers from 'majority guess' up to the judge itself"
+  },
+  {
+   "id": "s09_review",
+   "narration": "Livingeval doesn't just point at the problem. It pulls real conversations from those blind spots into a review queue, right in your browser, so a human confirms what actually happened before anything gets trusted.",
+   "visual": "browser",
+   "command": null,
+   "url": "http://localhost:8000",
+   "headline": "A human confirms, not a guess",
+   "note": "Dashboard showing coverage charts next to a review queue of flagged conversations"
+  },
+  {
+   "id": "s10_promote",
+   "narration": "Once a few cases are confirmed, one command merges them into the suite. Coverage and detection power get measured again on the exact same traffic, so you can see the gap close.",
+   "visual": "terminal",
+   "command": "livingeval promote --suite my-suite",
+   "url": null,
+   "headline": "Confirmed cases rejoin the suite",
+   "note": "Terminal shows coverage number jumping up after the promote command runs"
+  },
+  {
+   "id": "s11_ci",
+   "narration": "The same gate wires straight into your existing pipeline. Exit code zero for pass, one for fail, two for blind, so your build can react to each one on its own terms.",
+   "visual": "terminal",
+   "command": "livingeval gate --suite suite.json --traces traces.jsonl",
+   "url": null,
+   "headline": "Three exit codes, one CI step",
+   "note": "Terminal output followed by a CI log line reading 'exit code 2'"
+  },
+  {
+   "id": "s12_close",
+   "narration": "It installs in one line, with no torch, no API keys and no network needed for the core measurements. Try it on your own traces, and find out what your suite has stopped seeing.",
+   "visual": "terminal",
+   "command": "pip install livingeval",
+   "url": null,
+   "headline": "One install. See what you're missing.",
+   "note": "Terminal completes install in seconds, cursor blinks ready for the next command"
+  }
+ ]
+}
