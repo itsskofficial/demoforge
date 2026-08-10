@@ -181,6 +181,17 @@ usable by an agent:
 * Multi-language narration from one script
 * B-roll from the repo: architecture diagrams, dependency graphs
 
+## Tests
+
+```sh
+python -m pytest tests -q
+```
+
+Seventeen fast tests over the parts with no model, GPU or ffmpeg in them:
+terminal emulation, narration chunking, easing bounds, text wrapping, and the
+arithmetic that keeps picture and narration on one timeline. Those are the
+things that would otherwise break a render an hour in and give no clue why.
+
 ## Contributing
 
 Contributions are welcome. The most useful thing you can add is a **second
