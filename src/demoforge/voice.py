@@ -116,20 +116,42 @@ def slow_reference(src: Path, dst: Path, pace: float = 0.9) -> Path:
 # ---------------------------------------------------------------------------
 
 
+# Chatterbox ships three models under one package. Which one you load matters
+# more than any parameter on it:
+#
+#   english       the default. Trained predominantly on Western English, and it
+#                 can flatten a non-Western accent while keeping the timbre.
+#   multilingual  23 languages including Hindi, so Indian phonetics are in its
+#                 representation space. The one to try when a clone sounds
+#                 like the right person with the wrong accent.
+#   turbo         faster, and the variant Resemble benchmarked against
+#                 ElevenLabs.
+MODELS = ("english", "multilingual", "turbo")
+
+
 class Voice:
     """A loaded Chatterbox, plus the chunking that keeps long reads stable."""
 
-    def __init__(self, reference: Path = REFERENCE, device: str | None = None) -> None:
+    def __init__(self, reference: Path = REFERENCE, device: str | None = None,
+                 model: str = "english", language: str = "en") -> None:
         import torch
-        from chatterbox.tts import ChatterboxTTS
 
         if not reference.exists():
             raise FileNotFoundError(f"no reference clip at {reference}; run `prepare` first")
         self.reference = reference
+        self.kind = model
+        self.language = language
         self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
         started = time.time()
-        self.model = ChatterboxTTS.from_pretrained(device=self.device)
-        print(f"  chatterbox on {self.device}  (loaded in {time.time() - started:.0f}s)")
+        if model == "multilingual":
+            from chatterbox import ChatterboxMultilingualTTS as Model
+        elif model == "turbo":
+            from chatterbox.tts_turbo import ChatterboxTurboTTS as Model
+        else:
+            from chatterbox.tts import ChatterboxTTS as Model
+        self.model = Model.from_pretrained(device=self.device)
+        print(f"  chatterbox/{model} on {self.device}  "
+              f"(loaded in {time.time() - started:.0f}s)")
 
     @staticmethod
     def chunk(text: str, max_chars: int = MAX_CHARS) -> list[str]:
@@ -155,12 +177,11 @@ class Voice:
         pieces = []
         silence = torch.zeros(1, int(gap * self.model.sr))
         for i, part in enumerate(parts):
-            wav = self.model.generate(
-                part,
-                audio_prompt_path=str(self.reference),
-                exaggeration=exaggeration,
-                cfg_weight=cfg_weight,
-            )
+            kwargs = dict(audio_prompt_path=str(self.reference),
+                          exaggeration=exaggeration, cfg_weight=cfg_weight)
+            if self.kind == "multilingual":
+                kwargs["language_id"] = self.language
+            wav = self.model.generate(part, **kwargs)
             pieces.append(wav.cpu())
             if i < len(parts) - 1:
                 pieces.append(silence)
@@ -204,6 +225,9 @@ def main() -> int:
                         help="final pitch-preserving stretch; 1.0 leaves it alone")
         sp.add_argument("--max-chars", type=int, default=MAX_CHARS,
                         help="chunk size; smaller means more pauses")
+        sp.add_argument("--model", default="english", choices=MODELS,
+                        help="multilingual holds a non-Western accent better")
+        sp.add_argument("--language", default="en", help="multilingual only")
         if name == "say":
             sp.add_argument("--text", required=True)
             sp.add_argument("--out", default=str(AUDIO / "sample.wav"))
@@ -227,7 +251,7 @@ def main() -> int:
         print(f"  reference  {out}  (paced {args.pace})")
         return 0
 
-    voice = Voice(Path(args.reference))
+    voice = Voice(Path(args.reference), model=args.model, language=args.language)
     knobs = dict(exaggeration=args.exaggeration, cfg_weight=args.cfg_weight,
                  gap=args.gap, pace=args.pace, max_chars=args.max_chars)
 
