@@ -77,11 +77,16 @@ demoforge doctor
 ### The whole thing
 
 ```sh
-demoforge plan  --repo ../yourproject --seconds 180 --audience "developers"
-demoforge voice --src yourvoice.mp3 --script projects/yourproject/narration.json
-demoforge face  --src yourselfie.mp4 --dur 20
+demoforge init  --repo ../yourproject      # asks for a voice clip, a face clip, a key
+demoforge voice --script projects/yourproject/narration.json
 demoforge build --project yourproject
+demoforge music --video out/yourproject-final.mp4 --style lofi
 ```
+
+`init` is the whole onboarding: it checks the toolchain, asks for the three
+things only you can supply, prepares them, reads your codebase and drafts a
+script. Everything it asks for is skippable — a repo with no face clip still
+produces a narrated demo.
 
 Out comes a narrated demo with you in the corner, plus a timecode table.
 
@@ -95,6 +100,7 @@ Out comes a narrated demo with you in the corner, plus a timecode table.
 | `assemble` | Fits picture to narration, lays audio under | seconds |
 | `face` | Lip-syncs the presenter | **hours** |
 | `compose` | Drops the head in the corner | seconds |
+| `music` | Scores it, ducked under the narration | seconds |
 
 Each stage writes files the next one reads, so any of them re-runs alone.
 That matters because the face stage runs at roughly 20× realtime: **lock the
@@ -144,6 +150,7 @@ usable by an agent:
 * [voice-cloning](./skills/voice-cloning/SKILL.md) — a voice from one clip, and how to slow it down
 * [lip-sync](./skills/lip-sync/SKILL.md) — record once, re-dub forever
 * [video-assembly](./skills/video-assembly/SKILL.md) — fitting, muxing, picture-in-picture
+* [audio-mix](./skills/audio-mix/SKILL.md) — a licence-free bed, ducked under the voice
 
 ## Design Decisions
 

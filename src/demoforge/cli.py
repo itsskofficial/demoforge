@@ -1,5 +1,6 @@
 """demoforge — one entry point for the whole pipeline.
 
+    demoforge init     --repo ../myapp    ask for what is needed, set it up
     demoforge doctor                      what is installed and what is missing
     demoforge plan     --repo .           read a codebase, propose a demo
     demoforge voice    --src clip.mp3     clone a voice, then speak the script
@@ -68,6 +69,21 @@ def _key(name: str) -> str:
             if line.strip().startswith(name):
                 value = line.split("=", 1)[1].strip().strip('"').strip("'")
     return value
+
+
+def cmd_init(args) -> int:
+    from demoforge.onboard import init
+    return init(Path(args.repo).resolve(), args.voice, args.face, args.key,
+                args.seconds, args.audience, args.yes)
+
+
+def cmd_music(args) -> int:
+    from demoforge.music import bed, mix
+    if args.video:
+        return mix(Path(args.video), Path(args.music), Path(args.out),
+                   args.music_db, args.duck_db) and 0
+    bed(args.seconds, Path(args.music), args.style, args.seed)
+    return 0
 
 
 def cmd_plan(args) -> int:
@@ -147,7 +163,28 @@ def main(argv=None) -> int:
     ap.add_argument("--version", action="version", version=f"demoforge {__version__}")
     sub = ap.add_subparsers(dest="cmd", required=True)
 
+    i = sub.add_parser("init", help="ask for what is needed and set it up")
+    i.add_argument("--repo", required=True)
+    i.add_argument("--voice", default=None, help="a recording to clone from")
+    i.add_argument("--face", default=None, help="a clip of the presenter")
+    i.add_argument("--key", default=None, help="ANTHROPIC_API_KEY")
+    i.add_argument("--seconds", type=int, default=180)
+    i.add_argument("--audience", default=None)
+    i.add_argument("--yes", action="store_true", help="take defaults, ask nothing")
+    i.set_defaults(fn=cmd_init)
+
     sub.add_parser("doctor", help="check the toolchain").set_defaults(fn=cmd_doctor)
+
+    mu = sub.add_parser("music", help="synthesise a bed, or score a cut with one")
+    mu.add_argument("--video", default=None, help="score this cut; omit to only make a bed")
+    mu.add_argument("--music", default=str(AUDIO / "bed.wav"))
+    mu.add_argument("--out", default=str(OUT / "final-scored.mp4"))
+    mu.add_argument("--seconds", type=float, default=180)
+    mu.add_argument("--style", default="lofi")
+    mu.add_argument("--seed", type=int, default=0)
+    mu.add_argument("--music-db", type=float, default=-23.0)
+    mu.add_argument("--duck-db", type=float, default=-14.0)
+    mu.set_defaults(fn=cmd_music)
 
     p = sub.add_parser("plan", help="read a codebase and propose a demo")
     p.add_argument("--repo", default=".")
