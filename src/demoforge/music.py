@@ -165,6 +165,32 @@ def bed(seconds: float, out: Path, style: str = "lofi", seed: int = 0) -> Path:
     return out
 
 
+def shape(src: Path, out: Path, seconds: float, offset: float = 0.0,
+          fade_in: float = 2.0, fade_out: float = 3.0, lufs: float = -16.0) -> Path:
+    """Slice a sourced track to the runtime and normalise it.
+
+    Sliding, never splicing: the offset is how a fixed edit and a track whose
+    arrangement is in the wrong place are reconciled. A splice costs a click, a
+    phase discontinuity or a broken bar; an offset costs nothing but requiring
+    the source to be longer than the film.
+
+    Normalised here, before ducking, so the duck targets mean the same thing on
+    every track.
+    """
+    out.parent.mkdir(parents=True, exist_ok=True)
+    fade_at = max(0.0, seconds - fade_out)
+    subprocess.run(
+        ["ffmpeg", "-y", "-loglevel", "error", "-ss", f"{offset:.3f}",
+         "-t", f"{seconds:.3f}", "-i", str(src),
+         "-af", (f"afade=t=in:st=0:d={fade_in},"
+                 f"afade=t=out:st={fade_at:.3f}:d={fade_out},"
+                 f"loudnorm=I={lufs}:TP=-1.5:LRA=11"),
+         "-ar", "44100", "-ac", "2", str(out)],
+        check=True)
+    print(f"  bed  {out.name}  {seconds:.0f}s from {offset:.1f}s of {src.name}")
+    return out
+
+
 def mix(video: Path, music: Path, out: Path, music_db: float = -23.0,
         duck_db: float = -14.0, release: int = 380, attack: int = 8) -> Path:
     """Lay `music` under `video`, ducking it whenever the narration speaks.
@@ -213,7 +239,13 @@ def main() -> int:
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
 
-    b = sub.add_parser("bed", help="synthesise a backing track")
+    s = sub.add_parser("shape", help="slice and normalise a sourced track")
+    s.add_argument("--src", required=True)
+    s.add_argument("--seconds", type=float, required=True)
+    s.add_argument("--offset", type=float, default=0.0)
+    s.add_argument("--out", default=str(AUDIO / "bed.wav"))
+
+    b = sub.add_parser("bed", help="synthesise a backing track (fallback)")
     b.add_argument("--seconds", type=float, required=True)
     b.add_argument("--style", default="lofi", choices=sorted(STYLES))
     b.add_argument("--seed", type=int, default=0)
@@ -230,7 +262,9 @@ def main() -> int:
     m.add_argument("--attack", type=int, default=8)
 
     args = ap.parse_args()
-    if args.cmd == "bed":
+    if args.cmd == "shape":
+        shape(Path(args.src), Path(args.out), args.seconds, args.offset)
+    elif args.cmd == "bed":
         bed(args.seconds, Path(args.out), args.style, args.seed)
     else:
         mix(Path(args.video), Path(args.music), Path(args.out),

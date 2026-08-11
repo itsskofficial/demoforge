@@ -14,22 +14,68 @@ voice is present and swells in the gaps between sentences. That is the whole
 difference between a video that sounds scored and one that sounds like a track
 was pasted underneath it.
 
-## Getting a bed
+## Getting a bed: source one, don't synthesise one
+
+A real, mastered, human-arranged cue beats anything generated. It grooves, and
+the difference is audible the moment a voice sits on top of it.
+
+```bash
+python -m demoforge.music_source find --query "chill trap beat"     --query "hip hop instrumental background" --runtime 180
+```
+
+Downloads candidates from Pixabay, whose Content License is genuinely free for
+commercial use with no attribution, and writes down the licence at download
+time — including what it **forbids**. Most stock licences bar redistributing the
+audio as a standalone file: fine for a bed inside a video, and it matters the
+first time someone asks for "the music on its own".
+
+### Shortlist on length, then on structure
+
+**Length first.** Alignment is done by *sliding* the track, so the source must
+be meaningfully longer than the film. A 180-second track under a 178-second cut
+gives you no offset to spend.
+
+**Then structure — and measure the right thing.** Stock music is limited hard,
+so RMS is nearly a straight line and ranking on "dynamic range" picks whichever
+track has the longest outro. A breakdown is the bass and percussion *leaving*,
+which barely moves total level but is unmistakable in the bands separately:
+
+```python
+low  = S[freq < 130].mean(axis=0)     # kick / bass  — is the floor still there?
+high = S[freq > 4000].mean(axis=0)    # hats / perc  — is the groove still there?
+```
+
+`music_source find` prints this as `thin` (longest stretch in seconds where both
+bands collapse). Look for **8s or more**, mid-track.
+
+**Download 8–12 candidates, not 2**, across several query framings — result sets
+barely overlap, and you cannot tell a track's structure from its title. Pixabay
+starts returning 403 after a handful of rapid requests, so the fetcher paces
+itself; sourcing is a once-per-video operation and has no reason to be fast.
+
+### Align by sliding, never splicing
+
+```bash
+python -m demoforge.music shape --src track.mp3 --seconds 178 --offset 30.3
+```
+
+Choose the offset that puts the track's arrangement *return* on your film's
+payoff. A splice costs a click, a phase discontinuity or a broken bar; an offset
+costs nothing but the length requirement above. Normalise to −16 LUFS here,
+before ducking, so the duck targets mean the same thing on every track.
+
+## The synthesised fallback
 
 ```bash
 python -m demoforge.music bed --seconds 180 --style lofi
 ```
 
-Synthesised from sine waves, filtered noise and envelopes. **Nobody owns it**,
-which matters for anything you publish: "royalty-free lofi" downloads carry
-terms that differ per track, per platform, and per whether your video is
-monetised, and that is a licence audit nobody wants attached to a demo.
+Sine waves, filtered noise and envelopes — nobody owns it. Legitimate when the
+video cannot take a licence dependency, or when you need an act break at an
+exact second no real track will give you.
 
-Two styles: `lofi` (74bpm, seventh chords, swung hats, tape wobble) and `trap`
-(140bpm, minor, 808 sub, faster hats).
-
-Bring your own instead with `mix --music yourtrack.mp3`. Check its licence
-covers your use before you publish.
+**It is also worse.** It does not groove. Treat it as a placeholder that
+unblocks the edit, and swap in a real cue before delivery.
 
 ### Why the generated bed is deliberately boring
 
