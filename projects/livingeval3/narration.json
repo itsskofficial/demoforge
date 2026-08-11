@@ -2,61 +2,66 @@
  {
   "id": "s01_hook",
   "segment": "s01_hook",
-  "text": "Every company has an AI assistant now. And almost all of them test it the same way. You save real conversations, check the answers by hand, and run them before every release. If they pass, you ship. I did exactly that. It went wrong in a way I didn't see."
+  "text": "Every company has an AI assistant now. And they all test it the same way. Save some real conversations, check the answers by hand, run them before every release. Green means ship."
  },
  {
-  "id": "s02_app",
-  "segment": "s02_app",
-  "text": "Here's the app. A support bot for a hardware shop. Someone asks where their order is, it looks up a real database, and answers. That's the whole thing."
+  "id": "s02_bug",
+  "segment": "s02_bug",
+  "text": "Here's mine. A support bot for a hardware shop. A customer asks to cancel an order. The database says it was already delivered. The bot says: it's been delivered, and it can't be cancelled, because it's out for delivery. It can't be both. It just said both."
  },
  {
-  "id": "s03_bug",
-  "segment": "s03_bug",
-  "text": "Except sometimes it isn't. Here's a real one. A customer wants to cancel an order. The database says it was already delivered. The bot says it's been delivered, and can't be cancelled, because it's out for delivery. Delivered, or out for delivery? It can't be both."
+  "id": "s03_tests",
+  "segment": "s03_tests",
+  "text": "So I wrote tests. Fifty real conversations, every answer checked by hand. Like unit tests, but for a chatbot. They pass. Every release."
  },
  {
-  "id": "s04_tests",
-  "segment": "s04_tests",
-  "text": "So I wrote tests. Fifty real conversations, every answer checked by hand. Like unit tests, but for a chatbot. I run them before every release. They pass."
+  "id": "s04_change",
+  "segment": "s04_change",
+  "text": "Then the business changed. The shop started renting out tools. Deposits, late fees, damage charges. By week eight, half of everything people asked was rentals."
  },
  {
-  "id": "s05_change",
-  "segment": "s05_change",
-  "text": "Then the business changed. The shop started renting out tools. Deposits, late fees, damage charges. A completely new kind of question. By week eight, half of everything people asked was rentals."
+  "id": "s05_trap",
+  "segment": "s05_trap",
+  "text": "My tests had zero rental questions. I wrote them before rentals existed. And they still passed. Every single time."
  },
  {
-  "id": "s06_trap",
-  "segment": "s06_trap",
-  "text": "My tests had zero rental questions. I wrote them before rentals existed. And they still passed. Every single time. They were still asking week one's questions, and the bot was still fine at those."
+  "id": "s06_coverage",
+  "segment": "s06_coverage",
+  "text": "So I built something to ask what my tests couldn't. First. How much of what people ask today do my tests even look like? Week one, seventy seven percent. Week eight, thirty."
  },
  {
-  "id": "s07_coverage",
-  "segment": "s07_coverage",
-  "text": "So I built something to ask two questions my tests couldn't. First. How much of what people ask today do my tests look like? Week one, seventy seven percent. Week eight, thirty."
+  "id": "s07_power",
+  "segment": "s07_power",
+  "text": "Second. If the bot got worse at rentals tomorrow, would my tests notice? So it breaks the bot on purpose, four hundred times, and counts how often the tests go red. One percent."
  },
  {
-  "id": "s08_power",
-  "segment": "s08_power",
-  "text": "Second, and this is the one that got me. If the bot got worse at rentals tomorrow, would my tests notice? It breaks the bot on purpose, four hundred times, and counts how often the tests go red. One percent."
+  "id": "s08_blind",
+  "segment": "s08_blind",
+  "text": "Pass. Fail. And a third answer nobody gives you. Blind. Not you're fine. I can't tell, and here's the number that says why."
  },
  {
-  "id": "s09_blind",
-  "segment": "s09_blind",
-  "text": "Every testing tool has two answers. Pass, or fail. This one has three. Pass. Fail. And blind. Blind doesn't mean you're fine. It means I can't tell, and here's the number that says why."
+  "id": "s09_judge",
+  "segment": "s09_judge",
+  "text": "It checks the grader too. Because an AI is grading these answers, and that costs real money. Could something cheaper do it? Keywords, word counts, a bag of features. It tries all of them against the judge. Nothing comes close. So the expensive one is earning its keep, and now I can prove it."
  },
  {
-  "id": "s10_fix",
-  "segment": "s10_fix",
-  "text": "Then it fixes it. It goes back through your real conversations, finds the ones your tests can't see, and queues them up. You say right or wrong. A person, not the AI. If I let the AI grade its own homework, I've proved nothing."
+  "id": "s10_mine",
+  "segment": "s10_mine",
+  "text": "Then it fixes it. It goes back through your real traffic and pulls out the conversations your tests can't see. Real customers. Real questions. It never invented one."
  },
  {
-  "id": "s11_result",
-  "segment": "s11_result",
-  "text": "Same traffic, same bug, same everything. How much my tests look like today's questions: thirty percent, up to sixty. Would they catch that rentals bug? One percent, up to forty three."
+  "id": "s11_review",
+  "segment": "s11_review",
+  "text": "They land in a review queue. You click right, or wrong. A person, not the AI. Let the AI grade its own homework and you've proved nothing."
  },
  {
-  "id": "s12_close",
-  "segment": "s12_close",
-  "text": "Everyone knows tests go stale. Nobody has a number for how stale yours are right now. That's the whole thing. Runs on your machine, costs nothing, two commands to try."
+  "id": "s12_result",
+  "segment": "s12_result",
+  "text": "Same traffic. Same bug. Same everything. How much my tests look like today's questions: thirty percent, up to sixty. Would they catch that rentals bug? One percent, up to forty three."
+ },
+ {
+  "id": "s13_close",
+  "segment": "s13_close",
+  "text": "Everyone knows tests go stale. Nobody has a number for how stale yours are right now. That's the whole thing. Runs on your machine. Costs nothing."
  }
 ]

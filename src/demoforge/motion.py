@@ -66,7 +66,12 @@ def mono(size: int, heavy: bool = False):
 
 
 def ease(x: float) -> float:
-    """Smoothstep. Slow at both ends, which is what reads as deliberate."""
+    """Smoothstep. Slow at both ends, which is what reads as deliberate.
+
+    Note the defaults around it are short (~0.34s). A demo reads as slow long
+    before the narration does: half-second fades on every element add up to
+    dead time the viewer feels but cannot point at.
+    """
     x = max(0.0, min(1.0, x))
     return x * x * (3 - 2 * x)
 
@@ -76,7 +81,7 @@ def ease_out(x: float) -> float:
     return 1 - (1 - x) ** 3
 
 
-def window(t: float, start: float, dur: float = 0.5) -> float:
+def window(t: float, start: float, dur: float = 0.32) -> float:
     """0 before `start`, 1 after `start + dur`, eased between."""
     if dur <= 0:
         return 1.0 if t >= start else 0.0
@@ -93,7 +98,7 @@ def blend(colour, amount: float, onto=BG):
 # ---------------------------------------------------------------------------
 
 
-def rise_text(d, xy, text, fnt, colour, t, start, dur=0.55, rise=26, anchor="la"):
+def rise_text(d, xy, text, fnt, colour, t, start, dur=0.34, rise=22, anchor="la"):
     """Fade up into place. The staple move; used for nearly every label."""
     a = window(t, start, dur)
     if a <= 0.001:
@@ -184,7 +189,7 @@ def cross(d, xy, size, t, start, colour=WARN):
     d.line([(x + size, y), (x + size * (1 - a), y + size * a)], fill=colour, width=w)
 
 
-def panel(d, box, t, start, radius=24, fill=PANEL, dur=0.5):
+def panel(d, box, t, start, radius=24, fill=PANEL, dur=0.34):
     a = window(t, start, dur)
     if a <= 0.001:
         return False

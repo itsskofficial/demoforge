@@ -101,7 +101,8 @@ def bug(seconds):
     q = "I need to cancel order NW-4030 if it's not gone out yet."
 
     def draw(d, img, t):
-        heading(d, "Except sometimes it isn't.", t, sub="A real answer, unedited.")
+        heading(d, "This is the app. A support bot.", t,
+                sub="And this is a real answer it gave. Unedited.")
         bubble(d, (140, 340), 900, wrap(q, regular(34), 840), regular(34), t, 0.9,
                colour=(31, 41, 55))
         if panel(d, (140, 500, 780, 584), t, 2.2, radius=16, fill=(40, 24, 24)):
@@ -121,7 +122,7 @@ def bug(seconds):
         cross(d, (1330, 640), 84, t, 7.8)
         return img
 
-    return Scene("s03_bug", seconds, draw)
+    return Scene("s02_bug", seconds, draw)
 
 
 # ---------------------------------------------------------------------------
@@ -149,7 +150,7 @@ def tests(seconds):
             d.text((1585, 438), "ALL PASSING", font=bold(34), fill=blend(OK, a), anchor="mm")
         return img
 
-    return Scene("s04_tests", seconds, draw)
+    return Scene("s03_tests", seconds, draw)
 
 
 # ---------------------------------------------------------------------------
@@ -185,7 +186,7 @@ def change(seconds):
                   bold(40), FG, t, 4.3)
         return img
 
-    return Scene("s05_change", seconds, draw)
+    return Scene("s04_change", seconds, draw)
 
 
 # ---------------------------------------------------------------------------
@@ -213,7 +214,7 @@ def trap(seconds):
         rise_text(d, (300, 916), "Every single time.", bold(44), FG, t, 3.8)
         return img
 
-    return Scene("s06_trap", seconds, draw)
+    return Scene("s05_trap", seconds, draw)
 
 
 # ---------------------------------------------------------------------------
@@ -247,7 +248,7 @@ def coverage(seconds):
                   bold(38), FG, t, 5.4)
         return img
 
-    return Scene("s07_coverage", seconds, draw)
+    return Scene("s06_coverage", seconds, draw)
 
 
 # ---------------------------------------------------------------------------
@@ -289,7 +290,7 @@ def power(seconds):
                   bold(38), FG, t, 6.4)
         return img
 
-    return Scene("s08_power", seconds, draw)
+    return Scene("s07_power", seconds, draw)
 
 
 # ---------------------------------------------------------------------------
@@ -317,7 +318,7 @@ def blind(seconds):
             return img2
         return img
 
-    return Scene("s09_blind", seconds, draw)
+    return Scene("s08_blind", seconds, draw)
 
 
 # ---------------------------------------------------------------------------
@@ -351,7 +352,7 @@ def fix(seconds):
                   regular(35), MUTED, t, 5.8)
         return img
 
-    return Scene("s10_fix", seconds, draw)
+    return Scene("s10_mine", seconds, draw)
 
 
 # ---------------------------------------------------------------------------
@@ -382,7 +383,7 @@ def result(seconds):
                   regular(35), MUTED, t, 5.4)
         return img
 
-    return Scene("s11_result", seconds, draw)
+    return Scene("s12_result", seconds, draw)
 
 
 # ---------------------------------------------------------------------------
@@ -404,17 +405,44 @@ def close(seconds):
                   mono(30), ACCENT, t, 4.2, anchor="ma")
         return img
 
-    return Scene("s12_close", seconds, draw)
+    return Scene("s13_close", seconds, draw)
 
 
 BUILDERS = {
-    "s01_hook": hook, "s02_app": app, "s03_bug": bug, "s04_tests": tests,
-    "s05_change": change, "s06_trap": trap, "s07_coverage": coverage,
-    "s08_power": power, "s09_blind": blind, "s10_fix": fix,
-    "s11_result": result, "s12_close": close,
+    "s01_hook": hook, "s02_bug": bug, "s03_tests": tests, "s04_change": change,
+    "s05_trap": trap, "s06_coverage": coverage, "s07_power": power,
+    "s08_blind": blind, "s10_mine": fix, "s12_result": result,
+    "s13_close": close,
 }
 
-TAIL = 1.0   # a beat of held frame after the line ends, before the cut
+# Two beats are real captured footage rather than drawings: the judge ladder
+# from the terminal run, and the review queue in a real browser. Showing the
+# tool working is worth more here than any card about it, and both were
+# already recorded for the long cut.
+INSERTS = {
+    "s09_judge": ("s4_measure", 53.0),
+    "s11_review": ("s5b_review", 6.0),
+}
+ORDER = ["s01_hook", "s02_bug", "s03_tests", "s04_change", "s05_trap",
+         "s06_coverage", "s07_power", "s08_blind", "s09_judge", "s10_mine",
+         "s11_review", "s12_result", "s13_close"]
+
+
+def insert(name: str, source: str, start: float, seconds: float):
+    """Trim a slice of already-rendered real footage to fit its narration."""
+    import subprocess
+
+    src = ROOT / "out" / "segments" / f"{source}.mp4"
+    out = ROOT / "out" / "segments" / f"{name}.mp4"
+    subprocess.run(
+        ["ffmpeg", "-y", "-loglevel", "error", "-ss", f"{start:.3f}",
+         "-t", f"{seconds:.3f}", "-i", str(src),
+         "-c:v", "libx264", "-crf", "18", "-preset", "medium",
+         "-pix_fmt", "yuv420p", "-r", "30", "-an", str(out)],
+        check=True)
+    print(f"  {out.name}  {seconds:.1f}s  (real footage from {source})")
+
+TAIL = 0.45  # a short beat after the line ends. Longer reads as dead air.
 
 
 def main() -> int:
@@ -425,12 +453,16 @@ def main() -> int:
         return 1
     measured = {n["id"]: n["seconds"] for n in json.loads(NARRATION.read_text("utf-8"))}
 
-    wanted = sys.argv[1:] or list(BUILDERS)
+    wanted = sys.argv[1:] or list(ORDER)
     order, at = [], 0.0
-    for name in BUILDERS:
+    for name in ORDER:
         seconds = round(measured.get(name, 8.0) + TAIL, 2)
         if name in wanted:
-            render(BUILDERS[name](seconds))
+            if name in INSERTS:
+                source, start = INSERTS[name]
+                insert(name, source, start, seconds)
+            else:
+                render(BUILDERS[name](seconds))
         order.append({"segment": name, "step": name.split("_", 1)[1], "length": seconds})
         at += seconds
     (ROOT / "out" / "segments" / "order-livingeval3.json").write_text(

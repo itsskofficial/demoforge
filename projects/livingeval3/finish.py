@@ -1,17 +1,15 @@
-"""The last three steps, once the lip-sync has landed.
+"""The last two steps, once the lip-sync has landed.
 
     python projects/livingeval3/finish.py
 
-Kept as a script rather than typed each time because the order matters and two
-of the steps are easy to get backwards: the presenter goes on before the music,
-and the music is normalised last. Scoring a cut and *then* compositing over it
-re-encodes the audio a second time for no reason.
+Kept as a script because the order matters and is easy to get backwards: the
+presenter goes on before the music, and the music is normalised last. Scoring a
+cut and then compositing over it re-encodes the audio a second time for nothing.
 """
 
 from __future__ import annotations
 
 import json
-import subprocess
 import sys
 from pathlib import Path
 
@@ -22,24 +20,34 @@ from demoforge.compose import compose, duration  # noqa: E402
 from demoforge.music import mix  # noqa: E402
 
 OUT = ROOT / "out"
+HERE = Path(__file__).parent
 SILENT = OUT / "livingeval3-silent.mp4"
 HEAD = OUT / "livingeval3-head.mp4"
 BED = OUT / "audio" / "bed-trap-auto.wav"
+WINDOWS = HERE / "presenter-windows.json"
 WITH_FACE = OUT / "livingeval3-face.mp4"
 FINAL = OUT / "livingeval3-final.mp4"
 
 
 def main() -> int:
-    for path in (SILENT, HEAD, BED):
+    for path in (SILENT, HEAD, BED, WINDOWS):
         if not path.exists():
             print(f"  missing: {path}")
             return 1
 
     print(f"\n  silent {duration(SILENT):.1f}s   head {duration(HEAD):.1f}s")
 
+    # The presenter is hidden across the two real-footage beats. Covering real
+    # terminal output with a face wastes the reason for showing it, and cutting
+    # to full frame gives the edit a rhythm: talking head for the argument,
+    # full frame for the evidence.
+    windows = [tuple(w) for w in json.loads(WINDOWS.read_text(encoding="utf-8"))]
+    hidden = duration(SILENT) - sum(b - a for a, b in windows)
+    print(f"  presenter hidden for {hidden:.1f}s across {len(windows)} visible spans")
+
     print("\n== presenter ==")
     compose(SILENT, HEAD, WITH_FACE, size=340, margin=56, corner="br",
-            bias=0.46, zoom=0.62)
+            show=windows, bias=0.46, zoom=0.62)
 
     print("\n== music ==")
     mix(WITH_FACE, BED, FINAL, music_db=-23.0, duck_db=-14.0)
