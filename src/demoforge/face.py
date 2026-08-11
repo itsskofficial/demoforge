@@ -189,6 +189,29 @@ def sync_chunked(video: Path, audio: Path, out: Path, chunk: float = 20.0,
         at += span
         index += 1
 
+    # LatentSync emits whole 16-frame windows, so it returns slightly LESS video
+    # than the audio it was given: 20s at 25fps is 500 frames, which truncates to
+    # 496 -- 160ms short, every chunk. Concatenated raw, that accumulates into
+    # visible lip drift (1.4s over a three-minute cut). Each piece is retimed
+    # back to its own audio length before joining, which spreads ~0.8% across the
+    # chunk rather than leaving a hole at each seam.
+    fixed = []
+    for index, piece in enumerate(pieces):
+        want = duration(workdir / f"a{index:03d}.wav")
+        got = duration(piece)
+        if abs(want - got) < 0.005:
+            fixed.append(piece)
+            continue
+        stretched = piece.with_name(f"{piece.stem}-fit.mp4")
+        subprocess.run(
+            ["ffmpeg", "-y", "-loglevel", "error", "-i", str(piece),
+             "-vf", f"setpts=PTS*{want / got:.9f},fps={FPS}",
+             "-c:v", "libx264", "-crf", "18", "-preset", "medium",
+             "-pix_fmt", "yuv420p", "-an", str(stretched)],
+            check=True)
+        fixed.append(stretched)
+    pieces = fixed
+
     listing = workdir / "parts.txt"
     listing.write_text("".join(f"file '{p.resolve().as_posix()}'\n" for p in pieces),
                        encoding="utf-8")

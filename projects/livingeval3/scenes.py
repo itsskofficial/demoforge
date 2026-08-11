@@ -28,6 +28,12 @@ from demoforge.motion import (  # noqa: E402
 )
 
 W, H = 1920, 1080
+
+# The presenter inset lives bottom-right (340px at a 56px margin), so nothing
+# may be drawn inside this box. Scenes were laid out full-frame first and the
+# collisions were only visible once the face was composited -- the presenter is
+# part of the layout, not something dropped on top of it afterwards.
+SAFE_X, SAFE_Y = 1500, 660
 NARRATION = ROOT / "out" / "audio" / "live3" / "narration.json"
 
 
@@ -112,7 +118,7 @@ def bug(seconds):
         rise_text(d, (140, 880), "Delivered, or out for delivery?", bold(46), FG, t, 6.6)
         rise_text(d, (140, 954), "It can't be both. It just said both.",
                   bold(40), WARN, t, 7.5)
-        cross(d, (1500, 880), 90, t, 7.8)
+        cross(d, (1330, 640), 84, t, 7.8)
         return img
 
     return Scene("s03_bug", seconds, draw)
@@ -138,9 +144,9 @@ def tests(seconds):
                   regular(35), MUTED, t, 3.0)
         if t > 3.9:
             a = window(t, 3.9, 0.5)
-            d.rounded_rectangle([1330, 890, 1600, 966], radius=18,
+            d.rounded_rectangle([1450, 400, 1720, 476], radius=18,
                                 fill=blend((22, 60, 38), a))
-            d.text((1465, 928), "ALL PASSING", font=bold(34), fill=blend(OK, a), anchor="mm")
+            d.text((1585, 438), "ALL PASSING", font=bold(34), fill=blend(OK, a), anchor="mm")
         return img
 
     return Scene("s04_tests", seconds, draw)
@@ -155,7 +161,7 @@ def change(seconds):
     def draw(d, img, t):
         heading(d, "Then the business changed.", t,
                 sub="Week five: the shop starts renting out tools.")
-        base_y, height, x0, bw, gap = 800, 340, 300, 128, 42
+        base_y, height, x0, bw, gap = 800, 340, 260, 112, 36
         for i, rental in enumerate(mix):
             x = x0 + i * (bw + gap)
             start = 1.2 + i * 0.16
@@ -202,8 +208,8 @@ def trap(seconds):
                    fill=blend(WARN, a), anchor="mm")
         if t > 3.0:
             a = window(t, 3.0, 0.5)
-            d.rounded_rectangle([1330, 660, 1760, 742], radius=18, fill=blend((22, 60, 38), a))
-            d.text((1545, 701), "STILL PASSING", font=bold(34), fill=blend(OK, a), anchor="mm")
+            d.rounded_rectangle([960, 900, 1330, 976], radius=18, fill=blend((22, 60, 38), a))
+            d.text((1145, 941), "STILL PASSING", font=bold(34), fill=blend(OK, a), anchor="mm")
         rise_text(d, (300, 916), "Every single time.", bold(44), FG, t, 3.8)
         return img
 
@@ -232,10 +238,10 @@ def coverage(seconds):
             if window(t, start + 0.3, 0.4) > 0.05:
                 d.text((1396, y + 22), f"{value:.0%}", font=bold(30),
                        fill=blend(FG, window(t, start + 0.3, 0.4)), anchor="lm")
-        count_text(d, (1620, 380), t, 1.5, 0.8, 0, 77, bold(120), ACCENT, "%", anchor="mm")
-        rise_text(d, (1620, 470), "week one", regular(28), MUTED, t, 1.8, anchor="mm")
-        count_text(d, (1620, 700), t, 3.6, 1.0, 77, 30, bold(120), WARN, "%", anchor="mm")
-        rise_text(d, (1620, 790), "week eight", regular(28), MUTED, t, 3.9, anchor="mm")
+        count_text(d, (1620, 330), t, 1.5, 0.8, 0, 77, bold(120), ACCENT, "%", anchor="mm")
+        rise_text(d, (1620, 420), "week one", regular(28), MUTED, t, 1.8, anchor="mm")
+        count_text(d, (1620, 556), t, 3.6, 1.0, 77, 30, bold(120), WARN, "%", anchor="mm")
+        rise_text(d, (1620, 646), "week eight", regular(28), MUTED, t, 3.9, anchor="mm")
         rise_text(d, (300, 966),
                   "Seventy percent of what people ask, I test nothing like.",
                   bold(38), FG, t, 5.4)
@@ -270,14 +276,14 @@ def power(seconds):
                           fill=blend(WARN if on else (44, 52, 62), a))
         if t > 4.0:
             a = window(t, 4.0, 0.5)
-            d.rounded_rectangle([1480, 420, 1800, 660], radius=24, fill=blend(PANEL, a))
-            count_text(d, (1640, 520), t, 4.2, 1.0, 0, 1, bold(112), WARN, "%", anchor="mm")
-            d.text((1640, 606), "caught", font=regular(30), fill=blend(MUTED, a), anchor="mm")
+            d.rounded_rectangle([1480, 336, 1800, 576], radius=24, fill=blend(PANEL, a))
+            count_text(d, (1640, 436), t, 4.2, 1.0, 0, 1, bold(112), WARN, "%", anchor="mm")
+            d.text((1640, 522), "caught", font=regular(30), fill=blend(MUTED, a), anchor="mm")
         if t > 5.4:
             a = window(t, 5.4, 0.5)
-            d.rounded_rectangle([1480, 700, 1800, 812], radius=20, fill=blend((44, 24, 24), a))
-            d.text((1640, 738), "0 of 50", font=bold(40), fill=blend(WARN, a), anchor="mm")
-            d.text((1640, 786), "tests are about rentals", font=regular(24),
+            d.rounded_rectangle([1480, 596, 1800, 676], radius=20, fill=blend((44, 24, 24), a))
+            d.text((1640, 624), "0 of 50", font=bold(36), fill=blend(WARN, a), anchor="mm")
+            d.text((1640, 658), "tests are about rentals", font=regular(23),
                    fill=blend(WARN, a), anchor="mm")
         rise_text(d, (300, 940), "They'd miss it ninety-nine times out of a hundred.",
                   bold(38), FG, t, 6.4)
@@ -367,10 +373,10 @@ def result(seconds):
                 d.text((470, y + 120), "→", font=bold(72), fill=blend(MUTED, a), anchor="mm")
             count_text(d, (700, y + 120), t, start + 0.7, 1.1, lo, hi, bold(112), OK, "%",
                        anchor="mm")
-            d.rounded_rectangle([900, y + 92, 900 + 780, y + 148], radius=8, fill=PANEL)
-            grow_bar(d, (900, y + 92), 780 * (lo / 100), 56, t, start, 0.35,
+            d.rounded_rectangle([900, y + 92, 900 + 560, y + 148], radius=8, fill=PANEL)
+            grow_bar(d, (900, y + 92), 560 * (lo / 100), 56, t, start, 0.35,
                      DIM, track=False)
-            grow_bar(d, (900, y + 92), 780 * (hi / 100), 56, t, start + 0.7, 1.1,
+            grow_bar(d, (900, y + 92), 560 * (hi / 100), 56, t, start + 0.7, 1.1,
                      blend(OK, 0.75), track=False)
         rise_text(d, (260, 936), "Still not finished — and it tells me that too.",
                   regular(35), MUTED, t, 5.4)
