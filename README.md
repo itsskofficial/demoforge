@@ -46,6 +46,8 @@ real elapsed time left on screen, and title cards are drawn rather than captured
 * [Playwright](https://playwright.dev/) — headless browser recording
 * [Pillow](https://python-pillow.org/) — motion graphics
 * [FFmpeg](https://ffmpeg.org/)
+* [Pixabay Music](https://pixabay.com/music/) — beds, free for commercial use
+* [librosa](https://librosa.org/) — ranking tracks on arrangement
 * [Claude](https://www.anthropic.com/) — codebase understanding
 
 ## Getting Started
@@ -136,6 +138,11 @@ script and the voice before you run it.**
   └──────────┘
        │
        ▼
+  ┌──────────┐  a sourced bed, shaped to the act map and ducked under the voice
+  │  music   │
+  └──────────┘
+       │
+       ▼
      one cut + timecodes
 ```
 
@@ -172,6 +179,15 @@ usable by an agent:
 * **The planner never runs what it proposes.** Commands are written to a file for
   a human to read. "Let a model read a repo and run the shell commands it chose"
   is not a shape this should have.
+
+* **Music is sourced, not synthesised.** A mastered cue grooves and a generated
+  one does not. Tracks are ranked on arrangement density by band rather than
+  RMS — stock music is limited hard, so total level is nearly flat and ranking
+  on dynamic range just picks whichever track has the longest outro.
+
+* **Licences are recorded at download time**, including what they forbid. Most
+  stock licences bar redistributing the audio standalone: fine for a bed inside
+  a video, and it matters the first time someone asks for the music on its own.
 
 * **Voice references are gitignored.** A cloned voice is someone's identity; the
   sample stays on the machine that recorded it.

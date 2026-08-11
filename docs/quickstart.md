@@ -144,6 +144,23 @@ about an hour. Leave it running.
 
 ---
 
+---
+
+## 7. Score it
+
+```bash
+python -m demoforge.music_source find --query "chill trap beat" --runtime 180
+python -m demoforge.music shape --src out/audio/candidates/<pick>.mp3 --seconds 180
+python -m demoforge.music mix --video out/final.mp4 --out out/final-scored.mp4
+```
+
+Shortlist on **length** first — alignment slides the track rather than splicing
+it, so the source must be longer than the film. Then on `thin` (a real
+breakdown is 8s or more). If nothing has one, impose an arrangement with
+`music automate`.
+
+---
+
 ## When the product changes
 
 Re-run from step 4. The face and voice stay; only the words and the picture are
