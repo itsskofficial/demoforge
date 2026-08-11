@@ -25,3 +25,6 @@ assets/face/
 
 # Rendered demo output for the bundled example.
 out/
+
+# Model weights.
+vendor/indextts/checkpoints*/

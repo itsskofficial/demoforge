@@ -235,6 +235,15 @@ def main() -> int:
             sp.add_argument("--script", required=True)
             sp.add_argument("--outdir", default=str(AUDIO))
 
+    c = sub.add_parser("compare", help="same line through every model, to choose one")
+    c.add_argument("--text", required=True)
+    c.add_argument("--reference", default=str(REFERENCE))
+    c.add_argument("--models", default=",".join(MODELS))
+    c.add_argument("--outdir", default=str(AUDIO / "compare"))
+    c.add_argument("--exaggeration", type=float, default=EXAGGERATION)
+    c.add_argument("--cfg-weight", type=float, default=CFG_WEIGHT)
+    c.add_argument("--pace", type=float, default=PACE)
+
     r = sub.add_parser("slow-ref", help="make a calmer reference clip")
     r.add_argument("--src", default=str(REFERENCE))
     r.add_argument("--out", required=True)
@@ -244,6 +253,26 @@ def main() -> int:
 
     if args.cmd == "prepare":
         prepare(Path(args.src), Path(args.out), args.start, args.dur)
+        return 0
+
+    if args.cmd == "compare":
+        # One sentence, every model, identical settings. Comparing across
+        # different sentences is how you convince yourself of a difference that
+        # is not there -- accent judgements need the same words.
+        outdir = Path(args.outdir)
+        outdir.mkdir(parents=True, exist_ok=True)
+        words = len(args.text.split())
+        for name in args.models.split(","):
+            try:
+                voice = Voice(Path(args.reference), model=name.strip())
+            except Exception as exc:                       # noqa: BLE001
+                print(f"  {name}: {type(exc).__name__}: {str(exc)[:80]}")
+                continue
+            seconds = voice.say(args.text, outdir / f"{name.strip()}.wav",
+                                exaggeration=args.exaggeration,
+                                cfg_weight=args.cfg_weight, pace=args.pace)
+            print(f"    -> {words / seconds * 60:.0f} wpm")
+        print(f"\n  {outdir}  - listen for accent first, pace second")
         return 0
 
     if args.cmd == "slow-ref":
