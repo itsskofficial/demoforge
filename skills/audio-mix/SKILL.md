@@ -54,7 +54,7 @@ The narration feeds a sidechain compressor that pulls the music down:
 |---|---|---|
 | `--music-db` | −23 | Resting level of the bed. |
 | `--duck-db` | −14 | How far it drops under speech. |
-| release | 650ms | Long, so the bed rises *between sentences* rather than pumping on every breath. |
+| `--release` | 380ms | How fast the bed recovers. Must be **shorter than your gaps** or it never does. |
 | attack | 8ms | Fast, so the first syllable is never buried. |
 
 **Never compress the narration to make room for the music.** It is backwards,
@@ -85,7 +85,10 @@ clashes once a voice is over it.
 ## What to listen for
 
 - **The first word of each scene.** If it is buried, the attack is too slow.
-- **The gaps.** If the bed does not come up, the release is too long.
+- **The gaps.** If the bed does not come up, check the gap length before touching
+  the release. Measured on a cut with 0.4s scene tails, 380ms and 650ms releases
+  produce *identical* levels — the gap is simply too short for either to matter.
+  Swell is an editing decision (longer tails), not a compressor setting.
 - **Pumping.** Bed audibly breathing on every pause means the release is too
   short or the ratio too high.
 - **The close.** The last few seconds usually have no narration, so the bed is

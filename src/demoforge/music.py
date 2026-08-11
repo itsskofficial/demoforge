@@ -166,12 +166,17 @@ def bed(seconds: float, out: Path, style: str = "lofi", seed: int = 0) -> Path:
 
 
 def mix(video: Path, music: Path, out: Path, music_db: float = -23.0,
-        duck_db: float = -14.0) -> Path:
+        duck_db: float = -14.0, release: int = 380, attack: int = 8) -> Path:
     """Lay `music` under `video`, ducking it whenever the narration speaks.
 
     `music_db` is the resting level of the bed; `duck_db` is how far it drops
     under speech. The narration itself is never touched -- compressing the voice
     to make room for the music is backwards.
+
+    `release` has to match the gaps in the cut. A long release sounds smoother
+    in the abstract, but if the pauses between lines are shorter than it, the
+    bed never recovers and the music simply sits low throughout. Measure a gap
+    in your own edit and set this under it.
     """
     has_audio = subprocess.run(
         ["ffprobe", "-v", "error", "-select_streams", "a", "-show_entries",
@@ -187,8 +192,8 @@ def mix(video: Path, music: Path, out: Path, music_db: float = -23.0,
     graph = (
         f"[1:a]aloop=loop=-1:size=2e9,volume={music_db}dB[bed];"
         f"[0:a]asplit=2[voice][key];"
-        f"[bed][key]sidechaincompress=threshold=0.02:ratio=12:attack=8:"
-        f"release=650:makeup=1:level_sc=1[ducked];"
+        f"[bed][key]sidechaincompress=threshold=0.02:ratio=12:attack={attack}:"
+        f"release={release}:makeup=1:level_sc=1[ducked];"
         f"[ducked]volume={duck_db}dB[quiet];"
         f"[voice][quiet]amix=inputs=2:duration=first:dropout_transition=0,"
         f"loudnorm=I=-16:TP=-1.5:LRA=11[a]"
@@ -220,13 +225,16 @@ def main() -> int:
     m.add_argument("--out", default=str(OUT / "final-scored.mp4"))
     m.add_argument("--music-db", type=float, default=-23.0)
     m.add_argument("--duck-db", type=float, default=-14.0)
+    m.add_argument("--release", type=int, default=380,
+                   help="ms for the bed to recover; keep it under your gap length")
+    m.add_argument("--attack", type=int, default=8)
 
     args = ap.parse_args()
     if args.cmd == "bed":
         bed(args.seconds, Path(args.out), args.style, args.seed)
     else:
         mix(Path(args.video), Path(args.music), Path(args.out),
-            args.music_db, args.duck_db)
+            args.music_db, args.duck_db, args.release, args.attack)
     return 0
 
 
