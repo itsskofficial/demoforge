@@ -144,8 +144,6 @@ about an hour. Leave it running.
 
 ---
 
----
-
 ## 7. Score it
 
 ```bash
