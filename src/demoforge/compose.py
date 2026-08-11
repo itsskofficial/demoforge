@@ -124,7 +124,9 @@ def compose(base: Path, head: Path, out: Path, size: int = SIZE, margin: int = M
         clauses = "+".join(f"between(t,{a:.2f},{b:.2f})" for a, b in show)
         enable = f":enable='{clauses}'"
 
-    # A ring drawn under the inset separates it from whatever is behind it.
+    # The overlay follows whichever input runs longest, so a head video even
+    # slightly longer than the cut leaves a frozen tail on the end. Pin the
+    # output to the base's own duration.
     ring = size + 10
     subprocess.run(
         ["ffmpeg", "-y", "-loglevel", "error",
@@ -135,6 +137,9 @@ def compose(base: Path, head: Path, out: Path, size: int = SIZE, margin: int = M
          f"[bg][1:v]overlay={x}:{y}{enable}[v]",
          "-map", "[v]", "-map", "0:a?", "-c:v", "libx264", "-preset", "medium",
          "-crf", "18", "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "192k",
+         # -t as an OUTPUT option. Before an input it only limits that input's
+         # read, which does not stop overlay running on to the longer one.
+         "-t", f"{duration(base):.3f}",
          "-movflags", "+faststart", str(out)],
         check=True)
     rounded.unlink(missing_ok=True)
