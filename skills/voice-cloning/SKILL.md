@@ -69,6 +69,30 @@ then discovering the narration overruns means rendering everything twice.
 - Avoid parentheses and semicolons; they produce odd pauses.
 - Read it aloud yourself first. If you stumble, so will the model.
 
+## Hosted APIs: check they can be *called*, not just that they clone
+
+The question to ask a hosted TTS provider is not "can it clone a voice" but
+"can my pipeline address the cloned voice from code". Those are different
+questions and vendors answer the first one loudly.
+
+Surveyed for this project:
+
+| Provider | Clones a voice? | Reachable from the API? |
+|---|---|---|
+| Chatterbox (local) | yes, ~10s reference | **yes** — it is a file path |
+| Sarvam Bulbul v3 | yes, ~10s, consent-gated | **not documented.** `speaker` takes one of 39 named voices; cloned ones surface in the dashboard's "My voices" and "Cloned voices" tabs |
+| Deepgram Aura-2 | **no** — 40+ fixed voices only | n/a |
+
+A voice that exists only behind a browser tab cannot be in a pipeline whose
+whole point is regenerating narration unattended when the product changes.
+That rules out an otherwise excellent model on integration grounds rather than
+quality grounds — worth checking before you plan around one.
+
+Both are still useful for **stock** narration: Deepgram Aura-2 has
+Indian-accented English at $30/1M characters, and Sarvam covers twelve Indian
+languages, which makes localising one script into several a real feature.
+You do not need *your* voice speaking Tamil; you need a good Tamil narrator.
+
 ## When to use the hosted path instead
 
 `demoforge.sarvam` speaks the same interface against Sarvam's Bulbul, which has
