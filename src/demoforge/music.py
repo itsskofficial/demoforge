@@ -18,6 +18,7 @@ what makes a demo feel scored rather than soundtracked.
 from __future__ import annotations
 
 import argparse
+import json
 import math
 import subprocess
 import sys
@@ -191,6 +192,57 @@ def shape(src: Path, out: Path, seconds: float, offset: float = 0.0,
     return out
 
 
+def automate(bed: Path, out: Path, points: list[tuple[float, float]],
+             open_sweep: float = 8.0) -> Path:
+    """Impose an arrangement on a bed that does not have one.
+
+    Most stock tracks are one texture end to end. `points` is a list of
+    `(seconds, gain_db)` that becomes a smoothed gain curve, so the bed can
+    thin out under the quiet beats of the edit and come back for the payoff --
+    which is what an editor does by hand when a library cue lacks a drop where
+    the cut needs one.
+
+    Level alone reads as "quieter". Level plus a closing filter reads as
+    "underwater", which is the effect worth having, so the cold open sweeps a
+    lowpass as well as the gain.
+    """
+    import numpy as np
+    import soundfile as sf
+    from scipy import signal
+
+    audio, rate = sf.read(str(bed), always_2d=True)
+    n = len(audio)
+    t_axis = np.arange(n) / rate
+
+    times = np.array([p[0] for p in points])
+    gains = np.array([10 ** (p[1] / 20) for p in points])
+    curve = np.interp(t_axis, times, gains)
+
+    # fftconvolve, not np.convolve: the latter is O(N*K) and at 177s with a
+    # 1.5s kernel that is ~10^10 operations, which looks exactly like a hang.
+    k = int(1.5 * rate)
+    window = np.hanning(k * 2 + 1)
+    window /= window.sum()
+    curve = signal.fftconvolve(curve, window, mode="same")
+
+    shaped = audio * curve[:, None]
+
+    if open_sweep > 0:
+        # Cold open: a track sliced at any offset starts mid-arrangement at full
+        # energy on frame one. Sweeping a lowpass open gives it an entrance.
+        head = int(open_sweep * rate)
+        block = 4096
+        for i in range(0, head, block):
+            j = min(i + block, head)
+            cut = 220 + (6000 - 220) * (i / head) ** 2
+            sos = signal.butter(2, cut, btype="low", fs=rate, output="sos")
+            shaped[i:j] = signal.sosfilt(sos, shaped[i:j], axis=0)
+
+    sf.write(str(out), shaped, rate)
+    print(f"  bed  {out.name}  automated over {len(points)} points")
+    return out
+
+
 def mix(video: Path, music: Path, out: Path, music_db: float = -23.0,
         duck_db: float = -14.0, release: int = 380, attack: int = 8) -> Path:
     """Lay `music` under `video`, ducking it whenever the narration speaks.
@@ -245,6 +297,13 @@ def main() -> int:
     s.add_argument("--offset", type=float, default=0.0)
     s.add_argument("--out", default=str(AUDIO / "bed.wav"))
 
+    a = sub.add_parser("automate", help="impose an arrangement on a flat bed")
+    a.add_argument("--src", required=True)
+    a.add_argument("--out", required=True)
+    a.add_argument("--points", required=True,
+                   help="JSON list of [seconds, gain_db]")
+    a.add_argument("--open-sweep", type=float, default=8.0)
+
     b = sub.add_parser("bed", help="synthesise a backing track (fallback)")
     b.add_argument("--seconds", type=float, required=True)
     b.add_argument("--style", default="lofi", choices=sorted(STYLES))
@@ -262,7 +321,11 @@ def main() -> int:
     m.add_argument("--attack", type=int, default=8)
 
     args = ap.parse_args()
-    if args.cmd == "shape":
+    if args.cmd == "automate":
+        automate(Path(args.src), Path(args.out),
+                 [tuple(x) for x in json.loads(Path(args.points).read_text("utf-8"))],
+                 args.open_sweep)
+    elif args.cmd == "shape":
         shape(Path(args.src), Path(args.out), args.seconds, args.offset)
     elif args.cmd == "bed":
         bed(args.seconds, Path(args.out), args.style, args.seed)

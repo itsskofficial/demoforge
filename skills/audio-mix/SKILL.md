@@ -64,6 +64,33 @@ payoff. A splice costs a click, a phase discontinuity or a broken bar; an offset
 costs nothing but the length requirement above. Normalise to −16 LUFS here,
 before ducking, so the duck targets mean the same thing on every track.
 
+### When the track has no breakdown to align to
+
+Most stock cues are one texture end to end — shortlisting on length often
+leaves you with nothing that has a real arrangement. Impose one:
+
+```bash
+python -m demoforge.music automate --src bed.wav --out bed-auto.wav     --points act-map.json
+```
+
+`points` is `[seconds, gain_db]` pairs taken from your running order: a cold
+open, a dip across whichever scene must read as the quietest, a lift on the
+payoff, a tail. Smoothed into a curve, so it is an arrangement rather than a
+set of steps.
+
+Two things worth knowing:
+
+- **Level alone reads as "quieter"; level plus a closing filter reads as
+  "underwater".** The cold open sweeps a lowpass as well as the gain, because a
+  track sliced at any offset starts at full energy on frame one.
+- **Smooth with `scipy.signal.fftconvolve`, never `np.convolve`.** At 177s and
+  a 1.5s kernel the latter is ~10¹⁰ operations and looks exactly like a hang.
+
+Verify with the meter, not intent — measure the bed alone at each act break and
+check the shape matches what you drew. Automation is *relative* gain over
+whatever the track is already doing, so a lift can still land quieter than a
+neutral section if the source dips there.
+
 ## The synthesised fallback
 
 ```bash
