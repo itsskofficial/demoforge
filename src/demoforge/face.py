@@ -70,34 +70,39 @@ def prepare(src: Path, out: Path, start: float = 0.0, dur: float | None = None,
     return out
 
 
-def loop(src: Path, out: Path, seconds: float, fps: int = FPS) -> Path:
-    """Extend a short clip to `seconds` by ping-ponging it.
+def loop(src: Path, out: Path, seconds: float, fps: int = FPS,
+         blend: float = 0.5) -> Path:
+    """Extend a short clip to `seconds` by looping it forwards.
 
-    A plain loop snaps back to frame one every cycle, which reads as a glitch.
-    Playing it forwards then backwards means the join is always between two
-    adjacent frames, so the seam is a change of direction rather than a cut.
-    The head drifts back and forth, which over a long narration looks like
-    someone shifting in their seat.
+    **Never ping-pong a person.** Playing a clip forwards then backwards makes
+    a seamless join, which is why it is tempting, and it is wrong: reversed
+    human motion is uncanny. Blinks un-blink, a jaw closing becomes a jaw
+    opening on nothing, a head settling becomes a head lurching. Lip-sync only
+    replaces the mouth, so everything around it is a person running backwards
+    for half the runtime, and viewers read it as "weird faces" without being
+    able to say why.
+
+    Forward-only has a seam instead. That is dealt with by crossfading the
+    clip's own tail into its own head, producing a cycle whose end already
+    matches its start, so repeating it has nothing to snap.
     """
-    reversed_clip = out.with_suffix(".rev.mp4")
-    subprocess.run(
-        ["ffmpeg", "-y", "-loglevel", "error", "-i", str(src),
-         "-vf", "reverse", "-an", "-c:v", "libx264", "-crf", "18",
-         "-pix_fmt", "yuv420p", str(reversed_clip)],
-        check=True)
+    d = duration(src)
+    x = min(blend, d / 4)
+    body = d - x
 
     cycle = out.with_suffix(".cycle.mp4")
-    listing = out.with_suffix(".txt")
-    # Absolute: the concat demuxer resolves relative entries against the
-    # listing file's own directory, not the working directory.
-    listing.write_text(
-        f"file '{src.resolve().as_posix()}'\nfile '{reversed_clip.resolve().as_posix()}'\n",
-        encoding="utf-8")
-    # Re-encoded rather than stream-copied: the reversed clip comes back with a
-    # different timebase, and concat -c copy refuses to join the two.
     subprocess.run(
-        ["ffmpeg", "-y", "-loglevel", "error", "-f", "concat", "-safe", "0",
-         "-i", str(listing), "-c:v", "libx264", "-crf", "18", "-preset", "medium",
+        ["ffmpeg", "-y", "-loglevel", "error", "-i", str(src),
+         "-filter_complex",
+         # xfade refuses a variable frame rate, and `trim` leaves the rate
+         # unset, so each branch is re-rated before it reaches the crossfade.
+         f"[0:v]fps={fps},split=3[b][t][h];"
+         f"[b]trim=0:{body:.3f},setpts=PTS-STARTPTS,fps={fps}[bb];"
+         f"[t]trim={body:.3f}:{d:.3f},setpts=PTS-STARTPTS,fps={fps}[tt];"
+         f"[h]trim=0:{x:.3f},setpts=PTS-STARTPTS,fps={fps}[hh];"
+         f"[tt][hh]xfade=transition=fade:duration={x:.3f}:offset=0[xx];"
+         f"[bb][xx]concat=n=2:v=1[v]",
+         "-map", "[v]", "-an", "-c:v", "libx264", "-crf", "18", "-preset", "medium",
          "-pix_fmt", "yuv420p", "-r", str(fps), str(cycle)],
         check=True)
 
@@ -107,9 +112,9 @@ def loop(src: Path, out: Path, seconds: float, fps: int = FPS) -> Path:
          "-i", str(cycle), "-t", f"{seconds:.3f}", "-c:v", "libx264", "-crf", "18",
          "-preset", "medium", "-pix_fmt", "yuv420p", "-r", str(fps), str(out)],
         check=True)
-    for path in (reversed_clip, cycle, listing):
-        path.unlink(missing_ok=True)
-    print(f"  driver  {out.name}  {duration(out):.1f}s  ({repeats} ping-pong cycles)")
+    cycle.unlink(missing_ok=True)
+    print(f"  driver  {out.name}  {duration(out):.1f}s  "
+          f"({repeats} forward loops, {x:.1f}s blend)")
     return out
 
 

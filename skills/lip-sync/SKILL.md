@@ -39,10 +39,21 @@ these models are trained at.
 python -m demoforge.face loop --src driver.mp4 --seconds 180
 ```
 
-This ping-pongs — forwards, then backwards — rather than repeating. A plain loop
-snaps from the last frame back to the first every cycle, which reads as a
-glitch. Ping-ponging means every join is between two adjacent frames, so the
-seam is a change of direction and looks like someone shifting in their seat.
+**Never ping-pong a person.** Playing the clip forwards then backwards gives a
+mathematically seamless join, which is why it is tempting, and it is wrong.
+Reversed human motion is uncanny: blinks un-blink, a jaw closing becomes a jaw
+opening on nothing, a head settling becomes a head lurching. Lip-sync replaces
+only the mouth, so everything around it is a person running backwards — on a
+21s clip under a 3-minute narration that is **47% of the runtime**. Viewers
+report it as "weird faces" without being able to say why.
+
+`loop` goes forwards only and crossfades the clip's own tail into its own head,
+producing a cycle whose end already matches its start. The cost is a soft
+0.5s dissolve every cycle instead of a seamless join — far cheaper than
+reversed motion.
+
+The better fix is a longer driver: 60–90 seconds of footage means fewer loops
+and fewer seams. Twenty seconds works; it just repeats more.
 
 ## The idle-face problem
 
@@ -59,6 +70,9 @@ Three fixes, best first:
 2. **Sync per line, not per video.** Each narration line is continuous speech,
    so there is little silence inside it to go wrong.
 3. **Film a calmer driver.** Animated source footage produces animated idle.
+
+Check the loop direction before blaming the model. Reversed footage looks like
+a lip-sync failure and is not one.
 
 ## Running it
 
