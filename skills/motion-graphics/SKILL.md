@@ -1,6 +1,6 @@
 ---
 name: motion-graphics
-description: Draw animated scenes for a demo video — title cards, counters, bar charts, chat bubbles, badges. Use when a demo needs to explain something no screen recording can show, or when a video aimed at non-technical viewers needs less terminal and more picture. Covers the scene-as-function-of-time model and a small deliberate visual vocabulary.
+description: Draw animated scenes for a video — title cards, counters, charts, chat bubbles, overlays behind a speaker, transitions. Use when a video needs to explain something no screen recording can show, when a cut needs less terminal and more picture, or when building HyperFrames (HTML + GSAP) scenes for Film mode. Covers the scene-as-function-of-time model, timing to spoken words, and the browser-render traps that drop frames.
 ---
 
 # Drawing the parts you cannot record
@@ -60,7 +60,9 @@ getting it right up front is cheaper.
 
 Stagger reveals inside a scene against the words: if the line says "week one,
 seventy seven percent" four seconds in, the counter should land at four seconds.
-Read the line with a stopwatch and write the offsets down.
+Take those offsets from the transcript's word times, not a stopwatch, and keep
+them as named constants (`W.dead`, `W.company`) so a re-cut moves the beat with
+the word.
 
 ## Legibility
 
@@ -72,7 +74,34 @@ Read the line with a stopwatch and write the offsets down.
 - **Contrast against the panel, not the page**, once anything sits on a card.
 - **Never style a card as terminal output.** It implies a run that did not happen.
 
-## Cost
+## HyperFrames scenes (Film mode)
+
+Film mode draws in the browser instead: each scene is an HTML composition with
+one paused GSAP timeline, rendered by `npx hyperframes render`. The same rule
+holds (every value a function of the timeline's time), and the browser adds
+traps of its own:
+
+- **`fromTo` overlays need `immediateRender: false`.** Otherwise the start
+  state paints at build time and the first overlay shows from frame 0.
+- **No CSS `filter` on an element hosting video during a transition.** Chrome
+  capture drops a black frame when a filter switches on over a video. Move,
+  scale and fade the video host; blur and grade only overlays and stills.
+- **Scrims behind graphics on real footage.** A busy room eats thin type; a
+  soft dark panel or backing card keeps it legible without grading the shot.
+- **Leave the caption band (y 900–1020 at 1080p) empty** on every scene.
+- **Never `rm -rf` a scene folder.** `assets` and `lib` inside it are directory
+  junctions to the shared folders, and deleting through them deletes the
+  originals.
+- **Verify with snapshots** (`npx hyperframes snapshot <dir> --at t1,t2,...`)
+  before rendering: a contact sheet of the moments that matter costs seconds; a
+  full render costs half an hour.
+- **Render with temp on a big disk** and `FFMPEG_PROCESS_TIMEOUT_MS=1800000`;
+  a four-minute 1080p render needs ~10 GB of scratch and its audio pass outlives
+  the default timeout. `demoforge film render` sets both.
+- **Scan every render for dropped frames** (`demoforge film qa`) before anyone
+  watches it.
+
+## Cost (Pillow scenes)
 
 Frames are drawn with Pillow and piped straight to ffmpeg as raw video —
 nothing touches disk. A three-minute 1080p30 sequence renders in a couple of

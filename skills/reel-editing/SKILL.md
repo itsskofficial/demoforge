@@ -103,6 +103,12 @@ finished cut also mirrors every card and every screen recording, and backwards
 code is a very fast way to look fake. The cost it cannot avoid is text in the
 shot: a printed shirt will read backwards, and the only fix is not flipping.
 
+A card or sign the presenter holds up is the exception worth handling: flip
+that stretch back, but only from the moment the card is fully up, and hide the
+switch under a short punch-in (about 1.16× easing to 1 over 0.3 s). Flipping the
+whole shot mirrors the presenter's face for the seconds before the card
+arrives, which viewers notice.
+
 ## Fonts
 
 libass resolves a style's font family against installed system fonts. A
@@ -133,3 +139,19 @@ moment a take is quieter than the last one.
 Duck depth matters more than level. 12:1 is near-total — the bed vanishes under
 speech and exists only in the gaps, which for continuous narration is most of
 the film. Around 4:1 keeps it present underneath.
+
+Pick energetic music that is clearly present; "too calm" is the most common
+note on a reel. The voice runs continuously and the music never plays alone in
+place of it. Master to −14 LUFS / −1 dB true peak. The audio-mix skill covers
+sourcing, sections and effects.
+
+## Before you post
+
+- **Captions follow what was said.** Ad-libs stay in the captions; mishearings
+  are fixed by aligning the corrected text to whisper's word timings.
+- **Joins on the waveform.** Plot the cut voice against the source at every
+  join and listen to each first word; a clipped syllable reads as sloppy.
+- **Dropped frames.** Scan the render for isolated frames much darker than
+  both neighbours.
+- **AV1 phone exports.** ffmpeg's libaom fails on them and CUDA decoding
+  repeats frames; decode with libdav1d (PyAV) before ingest.

@@ -93,6 +93,31 @@ Indian-accented English at $30/1M characters, and Sarvam covers twelve Indian
 languages, which makes localising one script into several a real feature.
 You do not need *your* voice speaking Tamil; you need a good Tamil narrator.
 
+## When energy matters: IndexTTS-2
+
+`demoforge.indextts` speaks the same interface with IndexTTS-2, where **timbre
+and emotion are separate inputs**: the speaker clip says who you sound like,
+and a second clip, an eight-value vector or a plain description
+(`--emotion "energetic, confident"`) says how. In Chatterbox raising
+`exaggeration` for energy also speeds up and reshapes the delivery, so tuning
+one costs the other.
+
+```bash
+python -m demoforge.indextts script --script narration.json --emotion "energetic, confident"
+```
+
+Measure pace before correcting it: with an energetic emotion it came out
+*slower* (173 wpm against 186 plain), the opposite of Chatterbox. It needs its
+own environment (`.venv-indextts`) and checkpoints under `vendor/indextts/`.
+
+## When the person can record
+
+A cloned voice is the fallback, not the goal. If the speaker can record, have
+them read every line in one sitting (same room, same mic, same time of day),
+one file per line, numbered in film order, and build the narration from those
+clips (Film mode's `spine`). Real takes beat any clone for warmth, and the
+numbering keeps hundreds of decisions about which take goes where trivial.
+
 ## When to use the hosted path instead
 
 `demoforge.sarvam` speaks the same interface against Sarvam's Bulbul, which has

@@ -17,7 +17,7 @@ video.**
 
 ```bash
 python -m demoforge.capture step4.json -- python -m yourapp measure
-python projects/<name>/build.py
+demoforge build --project <name>      # runs the project's scenes.py, which replays the capture
 ```
 
 `capture` runs the real command and stores `(seconds, bytes)` pairs. Nothing is
@@ -60,7 +60,7 @@ distinctive substring (`"1.2%  ->"`) when a label appears twice in one run.
 ## Browsers
 
 ```bash
-python -m demoforge.browser review
+python projects/livingeval3/capture_browser.py review    # a project's own shots, on demoforge.browser
 ```
 
 Playwright drives a real Chromium and records it. Headless, so it works whether

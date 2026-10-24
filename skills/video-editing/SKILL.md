@@ -61,6 +61,33 @@ Similarly: filler words come out with the hesitation on either side of them.
 Lifting "um" and leaving its two-tenths of silence behind is worse than leaving
 the "um" in.
 
+## Words choose the cut; the waveform places it
+
+The transcript decides *which* words survive. It does not decide *where* the
+sample-accurate cut goes: whisper word times were off by up to a second on real
+recordings, bunch by about 0.3 s after silence on short clips, and hallucinate a
+"Thank you" over trailing silence.
+
+- Place each boundary on a **full-bandwidth envelope** (5 ms windows, speech =
+  floor + 14 dB). An 8 kHz envelope hides /s/ and /f/ and clips word endings.
+- Make the window step a whole number of samples; 22.05 kHz × 5 ms drifted
+  0.6 s over four minutes.
+- `ffmpeg -ss` can land early (about 135 ms on one camera's files) and seek
+  landings are quantised. Measure the offset with a calibration pass and check
+  each piece's landing against the envelope before trusting it.
+- Make every piece a whole number of frames, with PCM audio, or sound and
+  picture drift a frame per join.
+
+## Endings are where takes go wrong
+
+A speaker reading off a screen finishes the line and looks away to read the
+next one. Those frames are the tell of a reading, and they sit after the last
+word where pause tightening never looks. Find them frame by frame, show the
+speaker the candidate end frames, and cut only the ones they confirm. Keep the
+confirmed list as data (frame-exact times per line). Tightening every tail
+across the board also clips real breaths and endings; the reviewed list is the
+tool.
+
 ## Hide the jump cuts you just made
 
 Tightening a static webcam shot leaves visible jumps — a shoulder teleports
@@ -115,6 +142,13 @@ event — but karaoke timing is centiseconds relative to the line's own start an
 accumulates rounding across a long card. Word timings are absolute; keep them
 absolute.
 
+**Captions follow what was said, not the script.** Speakers ad-lib, and a
+caption that disagrees with the voice reads as a mistake. When whisper mishears
+a word, fix it by aligning the corrected text to whisper's word timings, so the
+timing still comes from the audio. Check the first and last word of every line
+against the untrimmed source: a word whisper finds in the source but not in the
+cut was clipped.
+
 `PlayResX/Y` must match the real frame. It is what makes every margin in the
 style block a true pixel measurement, so one caption file burns correctly at
 1080p and at a vertical crop with no second set of numbers.
@@ -127,6 +161,32 @@ Denoise before the music arrives or the compressor spends its range on hiss.
 Normalise after the bed or the number you normalised to is no longer the number
 coming out. Land at -14 LUFS, which is what every social platform is expecting
 and what stops your video being the quiet one in the feed.
+
+## Footage stays as shot
+
+Stylised grading of a real person's face (a blurred or replaced room, a warm
+grade, a composited set) reads as cheap compositing to the person in it. Keep
+footage as recorded. Where a look is wanted, use it on the whole frame (proper
+black and white, for example) and only where asked. A cutout is fine as an
+invisible depth layer so graphics can pass behind the speaker; backing panels
+and scrims keep graphics legible on a busy real room.
+
+Phone footage is often AV1. ffmpeg's libaom decoder fails on it and CUDA
+decoding silently repeats frames, which also corrupts mattes made from it.
+Decode with libdav1d (PyAV) and check the share of repeated frames before
+building on the footage.
+
+## Check the finished film, not the plan
+
+- **Every join, on the waveform**: plot the finished voice against the source
+  at each join. A lag that grows along the film is drift; a constant one is a
+  seek offset. Then re-transcribe and read every join.
+- **Dropped frames**: scan the render for isolated frames much darker than both
+  neighbours. Chrome capture drops a black frame when a CSS filter switches on
+  over a video; intentional dips and hard cuts look different (several frames,
+  or a step).
+- **Contact sheets** of each changed region before sending a cut: the edit you
+  meant and the edit you made differ most at boundaries.
 
 ## `plan.json` is the actual deliverable of `plan`
 
