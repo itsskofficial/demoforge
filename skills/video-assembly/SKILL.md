@@ -63,8 +63,15 @@ edit rhythm: presenter for narration, full screen for the thing being shown.
 
 ## Timecodes
 
-`stitch` writes a table of every segment's start and length. Hand it over with
-the video. Anyone re-cutting it — including you in a month — needs to know where
+```bash
+python -m demoforge.stitch out/segments/order-<project>.json
+```
+
+`stitch` is standalone: no mode calls it, and `build` uses `assemble` instead.
+It concatenates the segments in running order with no narration and writes
+`out/segments/timecodes.json`, every segment's start and length. Run it to
+watch the running order before anything is spoken, and hand the table over with
+the video: anyone re-cutting it, including you in a month, needs to know where
 the boundaries are without scrubbing.
 
 Keep cuts hard. A dissolve is harder to slide around in an editor than a cut,

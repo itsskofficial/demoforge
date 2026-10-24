@@ -1,6 +1,9 @@
 # Quickstart
 
-From nothing to a narrated demo with your face in the corner.
+From nothing to a narrated demo with your face in the corner: Demo mode, the
+longest path. The other modes start from footage you already have; see
+[editor-mode](editor-mode.md), [presenter-mode](presenter-mode.md),
+[reel-mode](reel-mode.md) and [film-mode](film-mode.md).
 
 Budget about **two hours** the first time, most of it downloads and one long
 render you can leave alone.
@@ -61,7 +64,26 @@ You never have to record either again. Every future demo reuses them.
 
 ---
 
-## 3. Plan the demo
+## 3. Onboard with `init`
+
+```bash
+demoforge init --repo ../yourproject --voice yourvoice.mp3 --face yourface.mp4
+```
+
+`init` does the setup of the steps below in one pass: it checks for ffmpeg and
+a GPU, cuts a voice reference from your clip (16 seconds from 8 seconds in),
+prepares the face clip as `assets/face/driver.mp4`, asks for an
+`ANTHROPIC_API_KEY` and saves it to `.env` (it reuses one already in `.env`,
+but does not read the environment variable), and runs `plan`.
+Anything you leave off the command line is asked for, and every answer can be
+left blank to skip it. `--yes` asks nothing and takes the defaults. It ends by
+printing the next commands.
+
+Each piece is also its own command, below, for when you want to redo one.
+
+---
+
+## 4. Plan the demo
 
 ```bash
 export ANTHROPIC_API_KEY=...        # or put it in .env
@@ -69,7 +91,11 @@ demoforge plan --repo ../yourproject --seconds 180 \
     --audience "developers who have never seen this"
 ```
 
-Writes `projects/yourproject/plan.json` and `narration.json`.
+Writes `projects/yourproject/plan.json` and `narration.json`. The plan is a
+product line, a problem line, an audience, and a list of scenes, each with its
+narration, a `visual` (`card`, `terminal` or `browser`), the `command` or `url`
+it shows, an on-screen `headline` and a `note` on what the picture should be.
+[example-plan.json](example-plan.json) is a real one, for livingeval.
 
 **Read the plan and edit it.** It was written by something that read your repo
 and has never used your product. Check every command it proposes — nothing runs
@@ -77,16 +103,23 @@ them for you, and that gap is deliberate.
 
 ---
 
-## 4. Voice
+## 5. Voice
 
 ```bash
-demoforge voice --src yourvoice.mp3 --start 8 --dur 16
+demoforge voice --src yourvoice.mp3 --start 8 --dur 16    # init did this; redo to pick another stretch
 demoforge voice --text "one line, to hear whether it sounds like you"
 ```
 
 If it sounds rushed, it is: the default reads around 220 words per minute
-against a comfortable 145. Lower `--cfg-weight` to 0.24 and set `--pace 0.85`.
-See [skills/voice-cloning](../skills/voice-cloning/SKILL.md).
+against a comfortable 145. Slow it with the lower-level command, which takes
+the model's own settings:
+
+```bash
+python -m demoforge.voice say --text "..." --cfg-weight 0.24 --pace 0.85
+```
+
+`demoforge voice` passes `--pace` through but not `--cfg-weight`. See
+[skills/voice-cloning](../skills/voice-cloning/SKILL.md).
 
 Once it sounds right:
 
@@ -99,7 +132,7 @@ against.
 
 ---
 
-## 5. Picture
+## 6. Picture
 
 Capture any commands the plan wants to show:
 
@@ -117,21 +150,23 @@ python projects/yourproject/scenes.py
 
 ---
 
-## 6. Assemble, then the face
+## 7. Assemble, then the face
 
 ```bash
 python -m demoforge.assemble --narration out/audio/narration.json
 ```
 
-You now have a watchable narrated demo. **Look at it before going further** —
+That writes `out/master-narrated.mp4` (`demoforge build --project yourproject
+--only scenes,assemble` runs the scenes and this together). You now have a watchable narrated demo. **Look at it before going further** —
 the next step takes hours and you do not want to run it on a cut you are going
 to change.
 
 ```bash
+ffmpeg -i out/master-narrated.mp4 -vn -ac 1 out/narration-timeline.wav
 python -m demoforge.face loop --src assets/face/driver.mp4 --seconds 200
 python -m demoforge.face sync --video assets/face/driver-long.mp4 \
     --audio out/narration-timeline.wav --out out/head.mp4 --chunk 20 --width 512
-python -m demoforge.compose --base out/master.mp4 --head out/head.mp4 \
+python -m demoforge.compose --base out/master-narrated.mp4 --head out/head.mp4 \
     --out out/final.mp4
 ```
 
@@ -144,7 +179,7 @@ about an hour. Leave it running.
 
 ---
 
-## 7. Score it
+## 8. Score it
 
 ```bash
 python -m demoforge.music_source find --query "chill trap beat" --runtime 180
@@ -168,8 +203,8 @@ rebuilt. That is the whole point.
 
 | Symptom | Cause |
 |---|---|
-| Narration sounds rushed | Defaults are ~220 wpm. Lower `--cfg-weight`. |
-| Sideways face | Phone rotation metadata. `face prepare` bakes it in. |
+| Narration sounds rushed | Defaults are ~220 wpm. Lower `--cfg-weight` (`python -m demoforge.voice say`). |
+| Sideways face | Phone rotation metadata. `demoforge face --src` bakes it in. |
 | `TritonMissing` | Windows has no Triton. `TORCHDYNAMO_DISABLE=1`. |
 | `numpy.dtype size changed` | Old scikit-image. Upgrade it. |
 | Weird expressions in pauses | Idle-face. Show the head only while speaking. |

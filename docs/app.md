@@ -1,6 +1,6 @@
 # The app
 
-A window over all five modes. Nothing in it makes video; it lists projects,
+A window over all six modes. Nothing in it makes video; it lists projects,
 writes profiles, runs the same commands the CLI would, and shows what came
 out.
 
@@ -43,6 +43,7 @@ every time torch moves. A checkout updates with `git pull`.
   ┌──────────┬──────────────────────────────────────────────┐
   │ New video│  What are you making?                        │
   │          │  [Short] [Reel] [Editor] [Presenter] [Demo]  │
+  │          │  [Film]                                      │
   │ SHORT    │                                              │
   │  ·       │  Projects                                    │
   │ REEL     │  [poster] [poster] [poster]                  │
@@ -56,7 +57,7 @@ every time torch moves. A checkout updates with `git pull`.
 **A mode card asks for what that mode needs and nothing else.** A Short wants
 a clip and some points; a Reel wants one recording; an Editor project wants a
 deck and a folder; a Presenter project wants the words; a Demo wants a
-repository. The form is generated from `demoforge.app.catalog`, so the fields,
+repository; a Film wants its lines, numbered, and a `film.json`. The form is generated from `demoforge.app.catalog`, so the fields,
 their help text and their defaults are in one place.
 
 **A project page is the pipeline.** One card per step, in order, each with
@@ -66,7 +67,7 @@ current phase and the elapsed time, and Stop kills the job and everything it
 started, ffmpeg included.
 
 **Setup is the profile, as a form.** Every field of `short.json`, `reel.json`,
-`edit.json`, `presentation.json` or `demo.json`, grouped into basics, look,
+`edit.json`, `presentation.json`, `demo.json` or `film.json`, grouped into basics, look,
 speech, sound and advanced, with a raw-JSON view for anything the form does
 not cover. Saving writes the file; the CLI reads the same file.
 
@@ -96,6 +97,9 @@ in a shell they are `demoforge tool <name>`.
 | `punch` | a recording of a face | mirrored, zoomed on the face, a touch faster |
 | `voice` | text and a voice clip | a `.wav` of the text in that voice |
 | `lipsync` | a face video and audio | the video re-dubbed |
+| `matte` | a video of a person | the cutout with alpha, or laid over a colour or image |
+| `restore` | a lip-synced video | the mouth (or face) sharpened back up with GFPGAN |
+| `voice-check` | narration audio, optionally the reference | `voice-check.json`: pace, loudness, clipping, likeness |
 | `broll-generate` | a prose prompt | a four-second shot from LTX-Video |
 | `broll-search` | a phrase | stock clips with a `.source.json` licence record each |
 
@@ -137,7 +141,7 @@ showing them.
 | `demoforge/app/window.py` | a free port, uvicorn in a thread, pywebview on top; browser fallback |
 | `demoforge/app/shortcuts.py` | Start Menu, desktop, `.desktop`, `.app` |
 | `demoforge/app/static/` | the page: one HTML file, one stylesheet, one script, no build step |
-| `demoforge/tools.py` | the ten tools as one CLI, each a thin call into the mode code |
+| `demoforge/tools.py` | the thirteen tools as one CLI, each a thin call into the mode code |
 
 ## Adding a mode
 

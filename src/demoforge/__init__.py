@@ -1,6 +1,6 @@
 """demoforge — product videos from a codebase, a voice, a face and whatever was filmed.
 
-Five modes, each a pipeline over a project folder, each starting from a
+Six modes, each a pipeline over a project folder, each starting from a
 different amount of material:
 
     demo      plan, capture and narrate a demo of a repository     (cli build)
@@ -8,9 +8,7 @@ different amount of material:
     edit      a deck and a pile of raw takes, cut into a film      edit.py
     reel      one vertical take, cut into a short vertical film    reel.py
     short     points over ambient footage, nobody on camera        short.py
-
-and a sixth on the way, `film`, for a narrated film made scene by scene
-(`demoforge.film`).
+    film      a narrated film of scenes on a voice spine            film/
 
 Underneath them, the shared pieces:
 
@@ -33,4 +31,4 @@ Nothing here knows what it is recording. A *project profile* under
 running order.
 """
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"

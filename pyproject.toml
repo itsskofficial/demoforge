@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "demoforge"
-version = "0.3.0"
-description = "Local video creation: demos, presenter cuts, edited talks, reels and shorts, on your machine"
+version = "0.4.0"
+description = "Local video creation: demos, presenter cuts, edited talks, reels, shorts and narrated films, on your machine"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "Apache-2.0" }
@@ -31,18 +31,20 @@ app = ["fastapi>=0.110", "uvicorn>=0.29", "websockets>=12", "pywebview>=5"]
 speech = ["openai-whisper>=20240930", "python-pptx>=1.0", "mediapipe>=0.10",
           "librosa>=0.10", "numpy<2.3"]
 browser = ["playwright>=1.40"]
+# Film mode: AV1 phone footage decoded through libdav1d, mattes, thumbnails.
+film = ["av>=12", "opencv-python>=4.9", "mediapipe>=0.10", "librosa>=0.10", "numpy<2.3"]
 voice = ["chatterbox-tts>=0.1.7"]
 # Generated b-roll: LTX-Video through diffusers, with the T5 encoder read
 # from a GGUF file. `sentencepiece` is what lets transformers read the T5
 # vocabulary; without it the tokenizer falls back to a parser that cannot.
 broll = ["diffusers>=0.32", "transformers>=4.48", "sentencepiece>=0.2", "gguf>=0.10", "accelerate>=1.0",
-         "imageio[ffmpeg]>=2.34"]
+         "imageio[ffmpeg]>=2.34", "av>=12", "opencv-python>=4.9"]
 plan = []
 all = ["fastapi>=0.110", "uvicorn>=0.29", "websockets>=12", "pywebview>=5",
        "openai-whisper>=20240930", "python-pptx>=1.0", "mediapipe>=0.10",
        "librosa>=0.10", "numpy<2.3", "playwright>=1.40", "chatterbox-tts>=0.1.7",
        "diffusers>=0.32", "transformers>=4.48", "sentencepiece>=0.2", "gguf>=0.10", "accelerate>=1.0",
-       "imageio[ffmpeg]>=2.34"]
+       "imageio[ffmpeg]>=2.34", "av>=12", "opencv-python>=4.9"]
 
 [project.scripts]
 demoforge = "demoforge.cli:main"
