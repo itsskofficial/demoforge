@@ -28,3 +28,33 @@ out/
 
 # Model weights.
 vendor/indextts/checkpoints*/
+
+# Presenter-mode recordings. Same rule as assets/voice/: a video of someone's
+# face is their biometric data, and it stays on the machine that recorded it.
+# The rendered slides and previews are large and reproducible from the takes.
+projects/*/takes/*
+!projects/*/takes/README.md
+projects/*/preview/
+projects/*/sessions/
+
+# Editor mode. The reference stills are a copy of somebody's deck rendered by
+# PowerPoint -- reproducible, large, and not ours to redistribute. Transcripts
+# stay in: they are the record of what the edit was made from, they are small,
+# and re-deriving one costs a GPU pass.
+projects/*/reference/
+
+# Editable install metadata.
+src/*.egg-info/
+
+# The app's own settings live beside the projects it manages.
+demoforge.settings.json
+out/_app/
+build/
+
+# Projects are the user's own footage, voices and client work: they stay on this
+# machine. livingeval3 is the one bundled example.
+projects/*
+!projects/livingeval3/
+
+# Downloaded model files (fetched by install / doctor).
+assets/models/
