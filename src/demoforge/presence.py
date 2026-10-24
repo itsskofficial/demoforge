@@ -45,17 +45,17 @@ from pathlib import Path
 
 import numpy as np
 
-from demoforge.config import OUT
+from demoforge.config import MODELS as _MODELS, OUT
 from demoforge.media import has_audio
 
 for _stream in (sys.stdout, sys.stderr):
     if hasattr(_stream, "reconfigure"):
         _stream.reconfigure(encoding="utf-8", errors="replace")
 
-MODELS = Path("E:/Models/demoforge/restore")
+MODELS = _MODELS / "restore"
 RVM = MODELS / "rvm_mobilenetv3_fp32.torchscript"
 GFPGAN = MODELS / "GFPGANv1.4.onnx"
-YUNET = Path("E:/Models/demoforge/echomimic/yunet.onnx")
+YUNET = _MODELS / "echomimic" / "yunet.onnx"
 
 # facexlib's FFHQ-512 five-point template, in the order YuNet reports its
 # landmarks: right eye, left eye, nose, right mouth corner, left mouth corner.

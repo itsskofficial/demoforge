@@ -6,7 +6,7 @@ granularity, and stores `(seconds_since_start, bytes)` so the renderer can
 replay the session at whatever pace the voiceover needs while keeping every
 character the program actually printed.
 
-    python -m demo.record.capture out.json -- python -m demo.run measure
+    python -m demoforge.capture out.json -- python -m yourapp measure
 """
 
 from __future__ import annotations

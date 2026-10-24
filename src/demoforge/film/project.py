@@ -33,6 +33,11 @@ import numpy as np
 
 from demoforge.config import OUT, PROJECTS, ROOT
 
+# The HyperFrames release every film step runs (the pitch film rendered on it).
+# Pinned so a project re-renders identically; bump deliberately.
+HYPERFRAMES = "0.8.181"
+HF = f"hyperframes@{HYPERFRAMES}"
+
 CONFIG = "film.json"
 
 # The transitions the root composition knows how to draw. A join names one.

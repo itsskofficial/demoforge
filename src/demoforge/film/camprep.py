@@ -19,7 +19,7 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
-from demoforge.film.project import Project, ffmpeg
+from demoforge.film.project import HF, Project, ffmpeg
 
 
 def cutout_filter(choke: int = 2, soften: float = 1.1, despill: str = "green", mix: float = 0.6) -> str:
@@ -32,7 +32,7 @@ def cutout_filter(choke: int = 2, soften: float = 1.1, despill: str = "green", m
 
 def matte(src: Path, out: Path) -> None:
     out.parent.mkdir(parents=True, exist_ok=True)
-    subprocess.run(["npx", "--yes", "hyperframes", "remove-background", str(src), "-o", str(out)],
+    subprocess.run(["npx", "--yes", HF, "remove-background", str(src), "-o", str(out)],
                    check=True, shell=True)
 
 

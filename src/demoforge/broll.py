@@ -59,16 +59,16 @@ import sys
 import time
 from pathlib import Path
 
-from demoforge.config import OUT
+from demoforge.config import MODELS as _MODELS, OUT
 
 for _stream in (sys.stdout, sys.stderr):
     if hasattr(_stream, "reconfigure"):
         _stream.reconfigure(encoding="utf-8", errors="replace")
 
 VIDEO = OUT / "video"
-MODELS = Path("E:/Models/demoforge/ltx")
+MODELS = _MODELS / "ltx"
 CHECKPOINT = MODELS / "ltxv-2b-0.9.8-distilled.safetensors"
-UPSCALER = Path("E:/Models/demoforge/ltx-upscaler")
+UPSCALER = _MODELS / "ltx-upscaler"
 ENCODER_GGUF = "t5-v1_1-xxl-encoder-Q5_K_M.gguf"
 EMBEDDINGS = MODELS / "prompts.pt"
 

@@ -29,9 +29,9 @@ import subprocess
 from pathlib import Path
 
 from demoforge.config import PROJECTS
+from demoforge.film.project import HYPERFRAMES
 
 KIT = Path(__file__).resolve().parent / "kit"
-HYPERFRAMES = "0.8.180"
 
 FILM_JSON = """{
  "_about": "A film-mode project. Every key is documented in docs/film-mode.md; keys starting with _ are comments.",

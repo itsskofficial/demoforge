@@ -16,13 +16,13 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-from demoforge.film.project import Project, ffmpeg, read_json
+from demoforge.film.project import HF, Project, ffmpeg, read_json
 
 
 def snapshot(scene_dir: Path, at: float, out: Path, tmp_root: Path) -> Path:
     tmp_root.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(dir=tmp_root) as tmp:
-        subprocess.run(["npx", "--yes", "hyperframes", "snapshot", str(scene_dir), "--at", str(at),
+        subprocess.run(["npx", "--yes", HF, "snapshot", str(scene_dir), "--at", str(at),
                         "--no-end", "--keep", "--describe", "false", "-o", tmp], check=True, shell=True)
         png = next(Path(tmp).glob("at-*.png"))
         out.parent.mkdir(parents=True, exist_ok=True)

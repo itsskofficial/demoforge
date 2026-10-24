@@ -165,7 +165,7 @@ function viewHome() {
       h("div", null,
         h("div", { class: "eyebrow" }, "Local video creation"),
         h("h1", null, "What are you making?"),
-        h("p", { class: "lead" }, "Five ways in, one machine, nothing uploaded. Pick the one that matches what you already have.")),
+        h("p", { class: "lead" }, "Six ways in, one machine, nothing uploaded. Pick the one that matches what you already have.")),
     ),
     modeGrid(),
   );

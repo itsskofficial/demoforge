@@ -16,6 +16,7 @@ complete set of inputs before doing anything.
 
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
 import sys
@@ -45,7 +46,9 @@ def say(text: str = "") -> None:
 
 
 def check_env(key: str, value: str | None, quiet: bool) -> str:
-    """Read a key from .env, or ask for it and write it there."""
+    """Read a key from the environment or .env, or ask for it and write it there."""
+    if os.environ.get(key, "").strip():
+        return os.environ[key].strip()
     env = ROOT / ".env"
     existing = ""
     if env.exists():

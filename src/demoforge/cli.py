@@ -10,6 +10,8 @@
     demoforge edit     --project myapp    a deck and raw takes, cut into a film
     demoforge reel     --project myapp    one vertical take, cut into a reel
     demoforge short    --project myapp    points over ambient footage, nothing filmed
+    demoforge film     build --project x  a narrated film, scene by scene (HyperFrames)
+    demoforge music    --video cut.mp4    score a finished cut, ducked under the voice
     demoforge tool     score --video x.mp4   one feature on one file; see `tool --help`
     demoforge app                         the window over all of the above
     demoforge shortcut                    put the app in the Start Menu
@@ -74,6 +76,14 @@ def cmd_doctor(args) -> int:
         ok("playwright", True)
     except ImportError:
         ok("playwright", False, "pip install playwright && playwright install chromium")
+    for mod, why, fix in (("mediapipe", "for gaze and `film thumbs`", "pip install mediapipe"),
+                          ("av", "for `film decode` (AV1 via libdav1d)", "pip install av")):
+        try:
+            importlib.import_module(mod)
+            ok(mod, True, why)
+        except ImportError:
+            ok(mod, False, fix)
+    ok("node + npx", shutil.which("npx") is not None, "for `film` (HyperFrames); install Node.js 20+")
     return 0
 
 
@@ -422,7 +432,8 @@ def build_parser() -> argparse.ArgumentParser:
     sh.set_defaults(fn=cmd_short)
 
     t = sub.add_parser("tool", help="one feature on one file: score, caption, tighten, "
-                       "gaze, cover, punch, voice, lipsync, broll-generate, broll-search")
+                       "gaze, cover, punch, voice, lipsync, broll-generate, broll-search, "
+                       "matte, restore, voice-check (`demoforge tool <name> --help`)")
     t.add_argument("name")
     t.add_argument("rest", nargs=argparse.REMAINDER)
     t.set_defaults(fn=cmd_tool)

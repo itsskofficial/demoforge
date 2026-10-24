@@ -42,6 +42,9 @@ ASSETS = ROOT / "assets"
 VOICE = ASSETS / "voice"
 
 # The local server a project profile brings up for its browser segments.
+# Large model weights live outside the repo (tens of GB). DEMOFORGE_MODELS moves them.
+MODELS = Path(os.environ.get("DEMOFORGE_MODELS", "E:/Models/demoforge"))
+
 BASE_URL = os.environ.get("DEMOFORGE_BASE_URL", "http://127.0.0.1:8000")
 
 FPS = 30

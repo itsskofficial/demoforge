@@ -27,7 +27,7 @@ import subprocess
 import time
 from pathlib import Path
 
-from demoforge.film.project import Project
+from demoforge.film.project import HF, Project
 
 
 def running_renders() -> list[tuple[int, str]]:
@@ -77,7 +77,7 @@ def render(p: Project, out: Path | None = None, workers: int | None = None,
     env = dict(os.environ, TEMP=str(temp), TMP=str(temp),
                FFMPEG_PROCESS_TIMEOUT_MS=str(rc["timeout_ms"]))
     log = p.work / f"render_{out.stem}.log"
-    cmd = ["npx", "--yes", "hyperframes", "render", str(p.emit), "-o", str(out),
+    cmd = ["npx", "--yes", HF, "render", str(p.emit), "-o", str(out),
            "--workers", str(workers or rc["workers"]), "-q", quality or rc["quality"]]
     print("render:", " ".join(cmd), f"\n  TEMP={temp}\n  log {log}")
     started = time.time()
