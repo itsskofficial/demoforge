@@ -25,7 +25,20 @@ from demoforge.terminal import Painter, Screen
 
 COLS = 112
 ROWS = 30
-PROMPT = "\x1b[32m~/livingeval\x1b[0m \x1b[36m$\x1b[0m "
+
+
+def prompt(cwd: str = "~") -> str:
+    """The shell prompt drawn before a typed command.
+
+    Takes the directory rather than baking one in. A terminal segment whose
+    prompt says someone else's project is the loudest possible tell that a
+    demo was built from a template, and it is the sort of thing that survives
+    every review because nobody reads the prompt.
+    """
+    return f"\x1b[32m{cwd}\x1b[0m \x1b[36m$\x1b[0m "
+
+
+PROMPT = prompt("~")
 
 
 @dataclass
@@ -47,9 +60,11 @@ class Timeline:
     def emit(self, text: str, real: float | None = None, cursor: bool = True) -> None:
         self.events.append(Event(self.t, text, real, cursor))
 
+    prompt: str = PROMPT
+
     def type_command(self, command: str, cps: float = 24.0, think: float = 0.55) -> None:
         """Type a prompt and a command the way a person would, then press enter."""
-        self.emit(PROMPT)
+        self.emit(self.prompt)
         self.wait(think)
         for i, ch in enumerate(command):
             self.emit(ch)

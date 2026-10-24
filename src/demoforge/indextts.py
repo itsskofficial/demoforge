@@ -49,37 +49,13 @@ def duration(path: Path) -> float:
         capture_output=True, text=True, check=True).stdout.strip())
 
 
-def _use_soundfile_for_saving() -> None:
-    """Write wavs with soundfile instead of torchaudio's new backend.
-
-    torchaudio 2.11 routes `save` through TorchCodec, whose native library
-    wants FFmpeg's *shared* libraries -- having `ffmpeg.exe` on PATH is not
-    enough, and on Windows it fails to load its own DLL. IndexTTS was written
-    against torchaudio 2.8, where `save` still had a working backend of its own.
-
-    This is the cost of reusing the machine's torch instead of the pinned one,
-    and it is a cheap cost: soundfile is already present and writes the same
-    PCM. Patched before IndexTTS imports so its module-level `torchaudio.save`
-    reference picks up the replacement.
-    """
-    import soundfile as sf
-    import torchaudio
-
-    def save(uri, src, sample_rate, **_kwargs):
-        data = src.detach().cpu()
-        if data.ndim == 2:
-            data = data.T                      # torchaudio is (channels, samples)
-        sf.write(str(uri), data.numpy(), int(sample_rate))
-
-    torchaudio.save = save
-
-
 class Voice:
     """A loaded IndexTTS-2, with the same `say` shape as demoforge.voice.Voice."""
 
     def __init__(self, reference: Path = REFERENCE, device: str | None = None) -> None:
         sys.path.insert(0, str(VENDOR))
-        _use_soundfile_for_saving()
+        from demoforge.torchaudio_compat import use_soundfile_for_saving
+        use_soundfile_for_saving()
         from indextts.infer_v2 import IndexTTS2
 
         if not reference.exists():

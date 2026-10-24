@@ -173,6 +173,9 @@ class Voice:
         import torch
         import torchaudio
 
+        from demoforge.torchaudio_compat import use_soundfile_for_saving
+        use_soundfile_for_saving()
+
         parts = self.chunk(text, max_chars)
         pieces = []
         silence = torch.zeros(1, int(gap * self.model.sr))

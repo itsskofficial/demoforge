@@ -21,7 +21,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from demoforge.config import ROOT, VOICE, ensure
+from demoforge.config import PROJECTS, ROOT, VOICE, ensure
 
 for _stream in (sys.stdout, sys.stderr):
     if hasattr(_stream, "reconfigure"):
@@ -127,7 +127,7 @@ def init(repo: Path, voice: str | None = None, face: str | None = None,
         say("    skipped: you will need to write the narration by hand")
 
     # --- 3. the part that needs no human ------------------------------------
-    project = ROOT / "projects" / repo.name
+    project = PROJECTS / repo.name
     if api_key:
         say()
         say(f"  Reading {repo.name} …")

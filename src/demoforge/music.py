@@ -244,12 +244,19 @@ def automate(bed: Path, out: Path, points: list[tuple[float, float]],
 
 
 def mix(video: Path, music: Path, out: Path, music_db: float = -23.0,
-        duck_db: float = -14.0, release: int = 380, attack: int = 8) -> Path:
+        duck_db: float = -14.0, release: int = 380, attack: int = 8,
+        ratio: float = 12) -> Path:
     """Lay `music` under `video`, ducking it whenever the narration speaks.
 
     `music_db` is the resting level of the bed; `duck_db` is how far it drops
     under speech. The narration itself is never touched -- compressing the voice
     to make room for the music is backwards.
+
+    `ratio` is how hard the bed is pushed down while the voice is present.
+    Twelve is near-total: the music effectively disappears under speech and
+    exists only in the gaps. That is right for a demo where the narration is
+    the whole point, and too much for a talk that should feel scored -- there,
+    four or five keeps the bed audible underneath without it competing.
 
     `release` has to match the gaps in the cut. A long release sounds smoother
     in the abstract, but if the pauses between lines are shorter than it, the
@@ -270,7 +277,7 @@ def mix(video: Path, music: Path, out: Path, music_db: float = -23.0,
     graph = (
         f"[1:a]aloop=loop=-1:size=2e9,volume={music_db}dB[bed];"
         f"[0:a]asplit=2[voice][key];"
-        f"[bed][key]sidechaincompress=threshold=0.02:ratio=12:attack={attack}:"
+        f"[bed][key]sidechaincompress=threshold=0.02:ratio={ratio}:attack={attack}:"
         f"release={release}:makeup=1:level_sc=1[ducked];"
         f"[ducked]volume={duck_db}dB[quiet];"
         f"[voice][quiet]amix=inputs=2:duration=first:dropout_transition=0,"

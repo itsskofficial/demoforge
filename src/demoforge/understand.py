@@ -29,7 +29,7 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-from demoforge.config import ROOT
+from demoforge.config import PROJECTS, ROOT
 
 for _stream in (sys.stdout, sys.stderr):
     if hasattr(_stream, "reconfigure"):
@@ -211,7 +211,7 @@ def main() -> int:
 
     print(f"  reading {repo} …")
     result = plan(repo, args.seconds, args.audience, args.model)
-    out = Path(args.out) if args.out else ROOT / "projects" / repo.name / "plan.json"
+    out = Path(args.out) if args.out else PROJECTS / repo.name / "plan.json"
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(result, indent=1), encoding="utf-8")
 

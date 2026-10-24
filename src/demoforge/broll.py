@@ -27,11 +27,25 @@ transformer. Prompts are known up front, so `encode` embeds them all and exits,
 and `sample` loads into a machine where that memory has been returned. Peak
 usage becomes the larger phase instead of the sum.
 
+**Why sampling is also split in two.** The shot is generated at half size,
+the latent upsampler doubles it, and four more steps refine the result. That
+is cheaper than generating large, because attention cost grows with the square
+of the token count and tokens grow with area -- and it is *better*, because the
+upsampler is a trained 2x in latent space rather than a resize. Measured here,
+one 4s vertical shot:
+
+    base only     352x608     35s   3.8 GB
+    + upsample    704x1216    36s   3.8 GB   sharp, but no new detail
+    + refine x4   704x1216   240s   8.6 GB   detail in the texture
+
     python -m demoforge.broll encode --shots shots.json
     python -m demoforge.broll sample
+    python -m demoforge.broll sample --no-refine     # preview, ~6x faster
     python -m demoforge.broll reel ltx-desk ltx-datagraph
 
-`shots.json` is a list of `{"id": ..., "prompt": ...}`. LTX wants long, prose,
+`shots.json` is a list of `{"id", "prompt", "aspect", "seconds"}`. `aspect` is
+one of `vertical`, `wide`, `square` and defaults to `wide`; `seconds` defaults
+to 4 and is rounded to what the temporal VAE accepts. LTX wants long, prose,
 chronological prompts describing action and camera; terse ones underperform
 badly, so the bundled examples are verbose on purpose.
 """
@@ -52,30 +66,55 @@ for _stream in (sys.stdout, sys.stderr):
         _stream.reconfigure(encoding="utf-8", errors="replace")
 
 VIDEO = OUT / "video"
-MODELS = Path("E:/ai-models/ltx")
+MODELS = Path("E:/Models/demoforge/ltx")
 CHECKPOINT = MODELS / "ltxv-2b-0.9.8-distilled.safetensors"
+UPSCALER = Path("E:/Models/demoforge/ltx-upscaler")
 ENCODER_GGUF = "t5-v1_1-xxl-encoder-Q5_K_M.gguf"
 EMBEDDINGS = MODELS / "prompts.pt"
 
-# LTX's tokenizer and scheduler config come from the base diffusers repo. The
-# VAE deliberately does not -- see `load_pipeline`.
+# LTX's tokenizer comes from the base diffusers repo. The VAE and the scheduler
+# deliberately do not -- see `load_pipeline`.
 BASE_REPO = "Lightricks/LTX-Video"
 
-WIDTH, HEIGHT, FRAMES, FPS_OUT = 704, 480, 97, 24
-STEPS = 8
+# Base sizes, which the latent upsampler doubles. Every dimension here is
+# divisible by 32 both before and after doubling, which the VAE requires.
+#
+# `vertical` is the one that matters. Generating wide and letterboxing it into
+# a 9:16 frame -- which is what this did until the panel treatment in `reel`
+# was the only option -- spends 60% of a reel on background. Asking for the
+# shape the film actually wants costs the same tokens and fills the frame.
+SIZES = {
+    "vertical": (352, 608),     # -> 704 x 1216
+    "wide": (704, 480),         # -> 1408 x 960
+    "square": (480, 480),       # -> 960 x 960
+}
+FPS_OUT = 24
 MAX_LEN = 128
+
+# The sigma schedule the distilled checkpoint was trained to land on. A
+# distilled model lands on a specific short list of timesteps; the scheduler's
+# own linear-quadratic spacing is not that list, and puts the sampler
+# somewhere the model has never been. It fails softly -- slightly mushy
+# output, no error -- which is why it went unnoticed.
+SIGMAS = [1.0000, 0.9937, 0.9875, 0.9812, 0.9750, 0.9094, 0.7250, 0.4219]
+
+# Pass 2 re-noises the upscaled latent to REFINE[6] and walks it down from
+# there. The first six entries are never sampled; they exist so that
+# `denoise_strength` slices the list at the right index.
+REFINE = [1.0, 0.95, 0.9, 0.8, 0.7, 0.6, 0.45, 0.33, 0.22, 0.11]
+REFINE_STRENGTH = 0.4
 
 NEGATIVE = ("worst quality, inconsistent motion, blurry, jittery, distorted, "
             "watermark, text, static image, deformed")
 
 EXAMPLES = [
-    {"id": "ltx-desk",
+    {"id": "ltx-desk", "aspect": "vertical", "seconds": 4.0,
      "prompt": "A developer's desk at night lit only by a monitor. Steam rises "
                "gently from a ceramic coffee mug beside a mechanical keyboard. The "
                "camera drifts slowly to the right, revealing the warm glow across "
                "the desk surface. Shallow depth of field, cinematic lighting, high "
                "detail, film grain."},
-    {"id": "ltx-datagraph",
+    {"id": "ltx-datagraph", "aspect": "vertical", "seconds": 4.0,
      "prompt": "A glowing line chart climbs steadily across a dark computer monitor "
                "in a dim room. The line is bright cyan against deep blue grid lines. "
                "The camera pushes in slowly and smoothly toward the screen. Soft "
@@ -88,6 +127,22 @@ def load_shots(path: Path | None) -> list[dict]:
     if path is None:
         return EXAMPLES
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def frames_for(seconds: float) -> int:
+    """Frames for a duration, rounded to what the temporal VAE accepts.
+
+    LTX compresses time 8:1, so a clip has to be `8k + 1` frames. Generating
+    the section's own length matters more than it sounds: the old fixed 97
+    frames meant `reel` retimed every cutaway to fit, and a 6.5s section over
+    a 4s clip plays at 0.62x -- which is the entire reason generated B-roll
+    reads as floaty.
+    """
+    want = max(1, round(seconds * FPS_OUT))
+    # Rounded up, never down. A cutaway one frame longer than its section gets
+    # trimmed; one frame shorter has to be retimed or held, and both of those
+    # are the thing this exists to stop.
+    return max(9, -(-(want - 1) // 8) * 8 + 1)
 
 
 # ---------------------------------------------------------------------------
@@ -120,7 +175,10 @@ def encode(shots: list[dict], out: Path = EMBEDDINGS) -> Path:
         store[shot["id"]] = embed(shot["prompt"])
         print(f"  embedded {shot['id']}")
     out.parent.mkdir(parents=True, exist_ok=True)
-    torch.save({"shots": [s["id"] for s in shots], "store": store}, out)
+    # The whole shot dict is kept, not just the id: `sample` needs the aspect
+    # and the duration, and requiring --shots on both phases is a good way to
+    # sample a vertical shot at the wide size and not notice until the cut.
+    torch.save({"shots": shots, "store": store}, out)
     print(f"  wrote {out}")
     return out
 
@@ -131,56 +189,126 @@ def encode(shots: list[dict], out: Path = EMBEDDINGS) -> Path:
 
 
 def load_pipeline():
-    """Build the pipeline with a VAE that matches the transformer.
+    """Build the sampler and the latent upsampler over one set of weights.
 
-    LTX changed its latent space after 0.9.0 and the diffusers `BASE_REPO` is
-    still the 0.9.0 layout, so pairing that VAE with a 0.9.8 transformer decodes
-    noise -- silently, since nothing about the shapes disagrees. The Lightricks
-    single-file checkpoints carry their own VAE (229 `vae.*` tensors next to the
-    `model.*` ones), so both are read from the one file and cannot drift apart.
+    Three things here are load-bearing and each fails softly:
+
+    **The VAE.** LTX changed its latent space after 0.9.0 and the diffusers
+    `BASE_REPO` is still the 0.9.0 layout, so pairing that VAE with a 0.9.8
+    transformer decodes noise -- silently, since nothing about the shapes
+    disagrees. The Lightricks single-file checkpoints carry their own VAE (229
+    `vae.*` tensors next to the `model.*` ones), so both are read from the one
+    file and cannot drift apart.
+
+    **The scheduler.** `BASE_REPO`'s has `use_dynamic_shifting`, under which an
+    explicit sigma list is rejected outright. The distilled checkpoint wants
+    exactly the list in `SIGMAS`, so the scheduler is constructed rather than
+    inherited.
+
+    **VAE tiling.** The refine pass decodes 97 frames at 704x1216 through a
+    conv3d, which is around 6 GB of activations on its own and OOMs an 8 GB
+    card before the transformer has asked for anything.
+
+    The upsampler shares the sampler's VAE object, so the second model on the
+    GPU costs 505 MB of weights and nothing else.
     """
     import torch
-    from diffusers import AutoencoderKLLTXVideo, LTXPipeline, LTXVideoTransformer3DModel
+    from diffusers import (AutoencoderKLLTXVideo, FlowMatchEulerDiscreteScheduler,
+                           LTXConditionPipeline, LTXLatentUpsamplePipeline,
+                           LTXVideoTransformer3DModel)
+    from diffusers.pipelines.ltx.modeling_latent_upsampler import (
+        LTXLatentUpsamplerModel)
 
     dtype = torch.bfloat16
     transformer = LTXVideoTransformer3DModel.from_single_file(str(CHECKPOINT),
                                                               torch_dtype=dtype)
     vae = AutoencoderKLLTXVideo.from_single_file(str(CHECKPOINT), torch_dtype=dtype)
-    pipe = LTXPipeline.from_pretrained(BASE_REPO, transformer=transformer, vae=vae,
-                                       text_encoder=None, tokenizer=None,
-                                       torch_dtype=dtype)
+    scheduler = FlowMatchEulerDiscreteScheduler(use_dynamic_shifting=False, shift=1.0)
+    pipe = LTXConditionPipeline.from_pretrained(
+        BASE_REPO, transformer=transformer, vae=vae, scheduler=scheduler,
+        text_encoder=None, tokenizer=None, torch_dtype=dtype)
+
+    upsampler = None
+    if UPSCALER.exists():
+        upsampler = LTXLatentUpsamplePipeline(
+            vae=vae,
+            latent_upsampler=LTXLatentUpsamplerModel.from_pretrained(
+                str(UPSCALER), subfolder="latent_upsampler", torch_dtype=dtype))
+        upsampler.enable_model_cpu_offload()
+
     pipe.enable_model_cpu_offload()
-    return pipe
+    vae.enable_tiling()
+    vae.enable_slicing()
+    return pipe, upsampler
 
 
 def sample(embeddings: Path = EMBEDDINGS, outdir: Path = VIDEO,
-           steps: int = STEPS) -> list[Path]:
+           shots: list[dict] | None = None, refine: bool = True) -> list[Path]:
+    """Embeddings in, video out, in two passes.
+
+    Pass 1 samples the base size in eight distilled steps. The latent
+    upsampler then doubles both spatial dimensions *in latent space* -- a
+    trained 2x, not a resize -- and pass 2 re-noises that to a middling sigma
+    and walks it back down in four steps.
+
+    The point of doing it this way rather than generating large directly is
+    that attention cost is quadratic in token count, and tokens scale with
+    area. Sampling at 352x608 and refining at 704x1216 costs roughly a third
+    of what sampling at 704x1216 costs, and the refine pass only runs four
+    steps instead of eight.
+    """
     import torch
     from diffusers.utils import export_to_video
 
     blob = torch.load(embeddings)
-    store, shots = blob["store"], blob["shots"]
-    pipe = load_pipeline()
+    store = blob["store"]
+    # Older embedding files hold bare ids; newer ones hold the shot dicts.
+    saved = [s if isinstance(s, dict) else {"id": s} for s in blob["shots"]]
+    spec = {s["id"]: s for s in saved}
+    spec.update({s["id"]: s for s in (shots or [])})
+    order = [s["id"] for s in saved]
+    pipe, upsampler = load_pipeline()
+    if refine and upsampler is None:
+        print(f"  no upsampler at {UPSCALER}; sampling base size only")
+        refine = False
     device, dtype = pipe._execution_device, torch.bfloat16
     print(f"  pipeline ready on {device} (no text encoder resident)")
 
     outdir.mkdir(parents=True, exist_ok=True)
     negative, negative_mask = store["neg"]
     written = []
-    for name in shots:
+    for name in order:
+        shot = spec.get(name, {})
+        width, height = SIZES.get(shot.get("aspect", "wide"), SIZES["wide"])
+        count = frames_for(shot.get("seconds", 4.0))
         embedding, mask = store[name]
-        started = time.time()
-        frames = pipe(prompt_embeds=embedding.to(device, dtype),
+        common = dict(prompt_embeds=embedding.to(device, dtype),
                       prompt_attention_mask=mask.to(device),
                       negative_prompt_embeds=negative.to(device, dtype),
                       negative_prompt_attention_mask=negative_mask.to(device),
-                      width=WIDTH, height=HEIGHT, num_frames=FRAMES,
-                      num_inference_steps=steps, guidance_scale=1.0).frames[0]
+                      guidance_scale=1.0, num_frames=count)
+        started = time.time()
+
+        result = pipe(width=width, height=height,
+                      timesteps=[s * 1000 for s in SIGMAS],
+                      num_inference_steps=len(SIGMAS),
+                      output_type="latent" if refine else "pil", **common)
+        if refine:
+            latents = upsampler(latents=result.frames, output_type="latent").frames
+            frames = pipe(width=width * 2, height=height * 2, latents=latents,
+                          timesteps=[s * 1000 for s in REFINE],
+                          num_inference_steps=len(REFINE),
+                          denoise_strength=REFINE_STRENGTH,
+                          image_cond_noise_scale=0.025,
+                          output_type="pil", **common).frames[0]
+        else:
+            frames = result.frames[0]
+
         path = outdir / f"{name}.mp4"
         export_to_video(frames, str(path), fps=FPS_OUT)
         peak = torch.cuda.max_memory_allocated() / 1024 ** 3
-        print(f"  {name:<18} {len(frames)} frames  {time.time() - started:5.0f}s  "
-              f"peak {peak:.1f} GB")
+        print(f"  {name:<18} {frames[0].size[0]}x{frames[0].size[1]}  "
+              f"{len(frames)} frames  {time.time() - started:5.0f}s  peak {peak:.1f} GB")
         torch.cuda.reset_peak_memory_stats()
         written.append(path)
     return written
@@ -259,7 +387,12 @@ def main() -> int:
                     help="json list of {id, prompt}; omit for the bundled examples")
 
     sp = sub.add_parser("sample", help="embeddings -> video")
-    sp.add_argument("--steps", type=int, default=STEPS)
+    sp.add_argument("--shots", type=Path, default=None,
+                    help="same json as `encode`; only needed for an old "
+                         "embeddings file that predates shot metadata")
+    sp.add_argument("--no-refine", action="store_true",
+                    help="skip the 2x upsample and refine pass -- roughly six "
+                         "times faster, and a preview rather than a shot")
 
     sp = sub.add_parser("reel", help="cross-dissolve shots into one clip")
     sp.add_argument("names", nargs="+")
@@ -271,7 +404,8 @@ def main() -> int:
     elif args.cmd == "sample":
         if not EMBEDDINGS.exists():
             raise SystemExit("no embeddings; run `encode` first")
-        sample(steps=args.steps)
+        sample(shots=load_shots(args.shots) if args.shots else None,
+               refine=not args.no_refine)
     else:
         reel(args.names, fade=args.fade)
     return 0

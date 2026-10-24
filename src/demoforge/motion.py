@@ -231,18 +231,27 @@ class Scene:
     draw: Callable[[ImageDraw.ImageDraw, Image.Image, float], Image.Image | None]
 
 
-def render(scene: Scene, out: Path | None = None, fps: int = FPS) -> Path:
+def render(scene: Scene, out: Path | None = None, fps: int = FPS,
+           size: tuple[int, int] | None = None) -> Path:
+    """Draw every frame of a scene straight into ffmpeg.
+
+    ``size`` defaults to the configured 16:9 canvas. It is a parameter because
+    the same deck has to come out as a vertical cut, and a scene that queries
+    the image it was handed rather than the module constants renders correctly
+    at both without being rewritten.
+    """
+    width, height = size or (WIDTH, HEIGHT)
     out = out or SEGMENTS / f"{scene.name}.mp4"
     out.parent.mkdir(parents=True, exist_ok=True)
     proc = subprocess.Popen(
         ["ffmpeg", "-y", "-loglevel", "error", "-f", "rawvideo", "-pix_fmt", "rgb24",
-         "-s", f"{WIDTH}x{HEIGHT}", "-r", str(fps), "-i", "-",
+         "-s", f"{width}x{height}", "-r", str(fps), "-i", "-",
          "-c:v", "libx264", "-preset", "medium", "-crf", "18",
          "-pix_fmt", "yuv420p", "-movflags", "+faststart", str(out)],
         stdin=subprocess.PIPE)
     try:
         for frame in range(int(scene.seconds * fps)):
-            img = Image.new("RGB", (WIDTH, HEIGHT), BG)
+            img = Image.new("RGB", (width, height), BG)
             d = ImageDraw.Draw(img)
             result = scene.draw(d, img, frame / fps)
             proc.stdin.write((result or img).tobytes())

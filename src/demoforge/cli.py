@@ -6,6 +6,13 @@
     demoforge voice    --src clip.mp3     clone a voice, then speak the script
     demoforge face     --src selfie.mp4   prepare the presenter footage
     demoforge build    --project myapp    render, narrate, lip-sync, assemble
+    demoforge present  --project myapp    you record the words, this builds the picture
+    demoforge edit     --project myapp    a deck and raw takes, cut into a film
+    demoforge reel     --project myapp    one vertical take, cut into a reel
+    demoforge short    --project myapp    points over ambient footage, nothing filmed
+    demoforge tool     score --video x.mp4   one feature on one file; see `tool --help`
+    demoforge app                         the window over all of the above
+    demoforge shortcut                    put the app in the Start Menu
 
 Each stage writes files the next one reads, so any of them can be re-run alone
 and the rest of the work is kept. That matters here because the lip-sync stage
@@ -24,7 +31,7 @@ import sys
 from pathlib import Path
 
 from demoforge import __version__
-from demoforge.config import AUDIO, OUT, ROOT, SEGMENTS, VOICE, ensure
+from demoforge.config import AUDIO, OUT, PROJECTS, ROOT, SEGMENTS, VOICE, ensure
 
 for _stream in (sys.stdout, sys.stderr):
     if hasattr(_stream, "reconfigure"):
@@ -52,6 +59,16 @@ def cmd_doctor(args) -> int:
     ok("presenter footage", any((ROOT / "assets/face").glob("*.mp4"))
        if (ROOT / "assets/face").exists() else False)
     ok("anthropic key", bool(_key("ANTHROPIC_API_KEY")), "for `plan`")
+    try:
+        import whisper  # noqa: F401
+        ok("whisper", True, "for `edit ingest`")
+    except ImportError:
+        ok("whisper", False, "pip install openai-whisper")
+    try:
+        import pptx  # noqa: F401
+        ok("python-pptx", True, "for `edit`")
+    except ImportError:
+        ok("python-pptx", False, "pip install python-pptx")
     try:
         import playwright  # noqa: F401
         ok("playwright", True)
@@ -119,7 +136,7 @@ def cmd_face(args) -> int:
 def cmd_build(args) -> int:
     """Render scenes, fit them to the narration, lip-sync, and composite."""
     ensure()
-    project = ROOT / "projects" / args.project
+    project = PROJECTS / args.project
     if not project.exists():
         print(f"no project at {project}")
         return 1
@@ -155,6 +172,116 @@ def cmd_build(args) -> int:
                         "--head", str(head),
                         "--out", str(OUT / f"{args.project}-final.mp4")], check=True)
     return 0
+
+
+def cmd_present(args) -> int:
+    """Presenter mode: the user records the words, demoforge builds the rest.
+
+    A separate path from `build`, not a replacement for it. `build` clones a
+    voice and lip-syncs a face; this one takes real recordings and fits the
+    picture to them. Both remain available because they fail in different
+    places: a generated demo is free to iterate and unconvincing to anyone who
+    knows the presenter, and a recorded one is the opposite.
+    """
+    from demoforge import present
+
+    argv = [args.action, "--project", args.project]
+    if args.no_trim:
+        argv.append("--no-trim")
+    if args.action == "build":
+        if args.out:
+            argv += ["--out", args.out]
+        if args.only:
+            argv += ["--only", *args.only.split(",")]
+    return present.main(argv)
+
+
+def cmd_edit(args) -> int:
+    """Editor mode: a deck and a folder of raw takes, cut into a film.
+
+    The third path, and the one that starts furthest back. `build` needs a
+    script, `present` needs one clean take per section; this one needs neither,
+    because it reads the words out of the recordings themselves and decides
+    which of the four attempts at a paragraph was the good one.
+    """
+    from demoforge import edit
+
+    argv = [args.action, "--project", args.project]
+    if args.action == "new":
+        argv += ["--deck", args.deck, "--footage", *args.footage,
+                 "--aspect", args.aspect, "--seconds", str(args.seconds)]
+    if args.action in ("build", "all") and args.out:
+        argv += ["--out", args.out]
+    if args.action == "build":
+        if args.only:
+            argv += ["--only", *args.only.split(",")]
+        if args.steps:
+            argv += ["--steps", args.steps]
+    if args.action == "ingest" and args.model:
+        argv += ["--model", args.model]
+    if args.action == "plan" and args.source:
+        argv += ["--from", args.source]
+    return edit.main(argv)
+
+
+def cmd_reel(args) -> int:
+    """Reel mode: one long vertical take, cut into a short vertical film.
+
+    The fourth path, and the one that assumes least of all: no deck, no script,
+    no per-section takes. It reads the words out of a single recording, asks
+    `gaze` where the eyes were, and only puts the presenter on the whole frame
+    where they were actually looking at the lens.
+    """
+    from demoforge import reel
+
+    argv = [args.action, "--project", args.project]
+    if args.action == "plan" and args.source:
+        argv += ["--from", args.source]
+    if args.action in ("build", "all") and args.out:
+        argv += ["--out", args.out]
+    if args.action == "build":
+        if args.only:
+            argv += ["--only", *args.only.split(",")]
+        if args.steps:
+            argv += ["--steps", args.steps]
+    return reel.main(argv)
+
+
+def cmd_short(args) -> int:
+    """Short mode: a list of points over ambient footage, nothing filmed.
+
+    The fifth path, and the only one the presenter never appears in. Timing
+    is authored rather than derived, because there is no speech to derive it
+    from.
+    """
+    from demoforge import short
+
+    argv = [args.action, "--project", args.project]
+    if args.out:
+        argv += ["--out", args.out]
+    if args.action == "build" and args.steps:
+        argv += ["--steps", args.steps]
+    return short.main(argv)
+
+
+def cmd_tool(args) -> int:
+    """One feature, one file. Score, caption, tighten, gaze, cover, punch,
+    voice, lipsync, and the two b-roll tools, each as a single command."""
+    from demoforge import tools
+    return tools.main([args.name, *args.rest])
+
+
+def cmd_app(args) -> int:
+    """The window. A local server and a native view on it; the browser if
+    there is no webview on this machine."""
+    from demoforge.app.window import launch
+    return launch(port=args.port, browser=args.browser, serve_only=args.serve,
+                  host=args.host, log_file=OUT / "_app" / "app.log")
+
+
+def cmd_shortcut(args) -> int:
+    from demoforge.app import shortcuts
+    return shortcuts.main()
 
 
 def main(argv=None) -> int:
@@ -217,6 +344,77 @@ def main(argv=None) -> int:
     b.add_argument("--head-audio", default=str(AUDIO / "narration-all.wav"))
     b.add_argument("--only", default=None, help="comma list: scenes,assemble,face,compose")
     b.set_defaults(fn=cmd_build)
+
+    pr = sub.add_parser(
+        "present",
+        help="presenter mode: you record the words, demoforge builds the picture")
+    pr.add_argument("action", choices=["script", "intake", "build"])
+    pr.add_argument("--project", required=True)
+    pr.add_argument("--out", default=None)
+    pr.add_argument("--only", default=None, help="comma list of section ids to re-render")
+    pr.add_argument("--no-trim", action="store_true",
+                    help="keep the silence at the ends of every take")
+    pr.set_defaults(fn=cmd_present)
+
+    ed = sub.add_parser(
+        "edit",
+        help="editor mode: a deck and raw recordings, cut into a finished video")
+    ed.add_argument("action", choices=["new", "ingest", "plan", "build", "all"])
+    ed.add_argument("--project", required=True)
+    ed.add_argument("--deck", default=None, help="the .pptx (with `new`)")
+    ed.add_argument("--footage", nargs="+", default=[],
+                    help="files, folders or globs (with `new`)")
+    ed.add_argument("--aspect", default="16:9", choices=["16:9", "9:16", "1:1"])
+    ed.add_argument("--seconds", type=float, default=0.0, help="target runtime")
+    ed.add_argument("--model", default=None, help="whisper model for `ingest`")
+    ed.add_argument("--from", dest="source", default=None,
+                    help="with `plan`: settle a cut written by hand")
+    ed.add_argument("--out", default=None)
+    ed.add_argument("--only", default=None, help="comma list of section ids")
+    ed.add_argument("--steps", default=None,
+                    help="comma list: sections,concat,captions,music")
+    ed.set_defaults(fn=cmd_edit)
+
+    rl = sub.add_parser(
+        "reel",
+        help="reel mode: one vertical take, cut into a short vertical film")
+    rl.add_argument("action", choices=["ingest", "plan", "build", "all"])
+    rl.add_argument("--project", required=True)
+    rl.add_argument("--from", dest="source", default=None,
+                    help="with `plan`: settle a cut written by hand")
+    rl.add_argument("--out", default=None)
+    rl.add_argument("--only", default=None, help="comma list of section ids")
+    rl.add_argument("--steps", default=None,
+                    help="comma list: sections,concat,captions,music")
+    rl.set_defaults(fn=cmd_reel)
+
+    sh = sub.add_parser(
+        "short",
+        help="short mode: a list of points over ambient footage, nothing filmed")
+    sh.add_argument("action", choices=["build", "cover"])
+    sh.add_argument("--project", required=True)
+    sh.add_argument("--out", default=None)
+    sh.add_argument("--steps", default=None,
+                    help="comma list: overlay,background,compose,music")
+    sh.set_defaults(fn=cmd_short)
+
+    t = sub.add_parser("tool", help="one feature on one file: score, caption, tighten, "
+                       "gaze, cover, punch, voice, lipsync, broll-generate, broll-search")
+    t.add_argument("name")
+    t.add_argument("rest", nargs=argparse.REMAINDER)
+    t.set_defaults(fn=cmd_tool)
+
+    a = sub.add_parser("app", help="open the app: every mode, in a window")
+    a.add_argument("--port", type=int, default=None, help="default: any free port")
+    a.add_argument("--host", default="127.0.0.1")
+    a.add_argument("--browser", action="store_true",
+                   help="open in the default browser instead of a native window")
+    a.add_argument("--serve", action="store_true",
+                   help="only run the server (port 8765 unless --port)")
+    a.set_defaults(fn=cmd_app)
+
+    sub.add_parser("shortcut", help="put the app in the Start Menu and on the desktop"
+                   ).set_defaults(fn=cmd_shortcut)
 
     args = ap.parse_args(argv)
     return args.fn(args)
