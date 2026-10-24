@@ -91,7 +91,11 @@ const GLYPHS = {
   edit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 9h18M8 5v14"/></svg>',
   present: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="16.5" cy="14.5" r="2.5"/><path d="M6 9h6"/></svg>',
   demo: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 17l4-4-4-4M10 17h10"/></svg>',
+  film: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 9h18M7 5l2 4M12 5l2 4M17 5l2 4"/></svg>',
 };
+
+// Every list of modes in the window reads this one, so a new mode is one line here.
+const MODE_ORDER = ["short", "reel", "edit", "present", "demo", "film"];
 
 // ---------------------------------------------------------------------------
 // boot + router
@@ -116,8 +120,7 @@ function renderSidebar() {
   const nav = $("#projects");
   nav.innerHTML = "";
   const current = (location.hash.match(/^#\/p\/([^/?]+)/) || [])[1];
-  const order = ["short", "reel", "edit", "present", "demo"];
-  for (const key of order) {
+  for (const key of MODE_ORDER) {
     const items = S.projects.filter((p) => p.mode === key);
     if (!items.length) continue;
     nav.append(h("h4", null, modeOf(key).name));
@@ -185,7 +188,7 @@ function viewHome() {
 }
 
 function modeGrid() {
-  return h("div", { class: "grid modes" }, ["short", "reel", "edit", "present", "demo"].map((key) => {
+  return h("div", { class: "grid modes" }, MODE_ORDER.filter((key) => modeOf(key)).map((key) => {
     const m = modeOf(key);
     return h("div", { class: "mode-card", onclick: () => (location.hash = `#/new/${key}`) },
       h("span", { class: "tag" }, m.aspect),
