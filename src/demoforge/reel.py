@@ -35,8 +35,10 @@ from typing import Any
 from demoforge import captions as caps
 from demoforge import gaze as gazemod
 from demoforge import reelkit
-from demoforge.config import OUT, PROJECTS, ROOT
-from demoforge.edit import (duration, lift, loudness, subtract, tighten)
+from demoforge.config import OUT, PROJECTS
+from demoforge.edit import lift, subtract, tighten
+from demoforge.media import (clean_voice, drive, duration, level_bed,  # noqa: F401
+                             local_track, loudness, master, size, sourced_track)
 from demoforge.transcribe import (Transcript, Word, correct, destutter,
                                   repair, transcribe)
 
@@ -635,11 +637,7 @@ def ground_png(profile: Profile, work: Path) -> Path:
 
 
 def _is_tall(source: Path, canvas_aspect: float) -> bool:
-    probe = subprocess.run(
-        ["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries",
-         "stream=width,height", "-of", "csv=p=0", str(source)],
-        capture_output=True, text=True, check=True)
-    src_w, src_h = (int(v) for v in probe.stdout.strip().split(","))
+    src_w, src_h = size(source)
     return src_w / src_h <= canvas_aspect * 1.05
 
 
@@ -680,11 +678,7 @@ def shot_broll(profile: Profile, clip: Path, out: Path, source: Path,
         # before it gets here, so it is whatever shape the content was --
         # forcing it back to 16:9 re-introduces exactly the crop the panel
         # treatment exists to avoid.
-        probe = subprocess.run(
-            ["ffprobe", "-v", "error", "-select_streams", "v:0",
-             "-show_entries", "stream=width,height", "-of", "csv=p=0",
-             str(source)], capture_output=True, text=True, check=True)
-        src_w, src_h = (int(v) for v in probe.stdout.strip().split(","))
+        src_w, src_h = size(source)
         # Time-scaled to the section rather than looped or truncated. A
         # terminal replay has a payoff at the end -- the plan, the list of
         # worktrees -- and a cutaway that stops two thirds of the way through
@@ -751,7 +745,7 @@ def cover(profile: Profile, at: float, lines: list[str], out: Path,
     this platform -- and where the film's own captions will appear, so the
     cover teaches the viewer where to look before the video starts.
     """
-    from PIL import Image, ImageDraw, ImageFilter
+    from PIL import Image, ImageDraw
 
     width, height = size or profile.size
     # The master, not the delivered file: that one already has captions burned
@@ -933,14 +927,7 @@ def _concat(pieces: list[Path], work: Path, out: Path) -> None:
 
 
 def _sound(profile: Profile, video: Path, work: Path, out: Path) -> Path:
-    voiced = work / "voice.mp4"
-    subprocess.run(
-        ["ffmpeg", "-y", "-loglevel", "error", "-i", str(video),
-         "-af", "highpass=f=90,afftdn=nr=10:nf=-28,"
-                "acompressor=threshold=-20dB:ratio=3:attack=8:release=180,"
-                "alimiter=limit=0.95",
-         "-c:v", "copy", "-c:a", "pcm_s16le", str(voiced)],
-        check=True)
+    voiced = clean_voice(video, work / "voice.mp4")
 
     track = next((work / f"bed{ext}" for ext in (".mp3", ".wav")
                   if (work / f"bed{ext}").exists()), work / "bed.mp3")
@@ -948,31 +935,18 @@ def _sound(profile: Profile, video: Path, work: Path, out: Path) -> Path:
         track = _bed(profile, work) or track
 
     if not profile.music or not track.exists():
-        subprocess.run(
-            ["ffmpeg", "-y", "-loglevel", "error", "-i", str(voiced),
-             "-af", f"loudnorm=I={profile.loudness}:TP=-1.2:LRA=9", "-c:v", "copy",
-             "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", str(out)],
-            check=True)
+        master(voiced, out, lufs=profile.loudness)
         voiced.unlink(missing_ok=True)
         return out
 
     from demoforge.music import mix
 
-    # Level the bed before placing it. A sourced cue is mastered to whatever
-    # its producer felt like, and its own loudness wanders across the track --
-    # which is heard as music that is present in one gap and absent in the
-    # next, and no amount of tuning the placement fixes it.
+    # Level the bed before placing it -- no amount of tuning the placement
+    # fixes a cue whose own loudness wanders. Slid, not spliced: the offset
+    # skips the intro and costs nothing but the length requirement.
     flat = work / "bed-level.wav"
     if not flat.exists():
-        # Slid, not spliced. Starting a few bars in skips the intro so the
-        # film opens on a track that is already going, and it costs nothing
-        # but the length requirement.
-        subprocess.run(
-            ["ffmpeg", "-y", "-loglevel", "error",
-             "-ss", f"{profile.music_offset:.2f}", "-i", str(track),
-             "-af", "loudnorm=I=-18:TP=-2:LRA=5", "-ar", "48000",
-             "-c:a", "pcm_s16le", str(flat)],
-            check=True)
+        level_bed(track, flat, profile.music_offset)
     track = flat
 
     voice_lufs, bed_lufs = loudness(voiced), loudness(track)
@@ -982,112 +956,26 @@ def _sound(profile: Profile, video: Path, work: Path, out: Path) -> Path:
     scored = work / "scored.mp4"
     mix(voiced, track, scored, music_db=gain, duck_db=0.0,
         ratio=profile.music_ratio, release=240)
-    subprocess.run(
-        ["ffmpeg", "-y", "-loglevel", "error", "-i", str(scored),
-         "-af", f"loudnorm=I={profile.loudness}:TP=-1.2:LRA=9", "-c:v", "copy",
-         "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", str(out)],
-        check=True)
+    master(scored, out, lufs=profile.loudness)
     voiced.unlink(missing_ok=True)
     return out
 
 
-def drive(path: Path, seconds: float = 60.0) -> tuple[float, float]:
-    """How busy a track is, and how much it moves.
-
-    Onset density separates a beat from a pad: a percussive cue throws several
-    energy steps a second and a bed of strings throws almost none. Crest
-    factor, on top, says whether the track has an arrangement or is simply
-    loud all the way through. Ranking on loudness alone picks the most limited
-    track in the folder, which is not the same as the most energetic.
-    """
-    import numpy as np
-    raw = subprocess.run(
-        ["ffmpeg", "-v", "error", "-i", str(path), "-t", f"{seconds:.0f}",
-         "-ac", "1", "-ar", "22050", "-f", "f32le", "-"],
-        capture_output=True).stdout
-    x = np.frombuffer(raw, dtype=np.float32)
-    if x.size < 22050:
-        return (0.0, 0.0)
-    hop = 512
-    frames = x[:len(x) // hop * hop].reshape(-1, hop)
-    rms = np.sqrt((frames ** 2).mean(axis=1)) + 1e-9
-    steps = np.diff(rms)
-    onsets = float((steps > steps.std() * 1.2).sum() / (len(steps) / (22050 / hop)))
-    return (onsets, float(rms.std() / rms.mean()))
+# Kept under its old name: `short` and `tools` reached in for it before it
+# moved to `media`, and a project script may still.
+_local = local_track
 
 
-def _local(profile: Profile, need: float) -> Path | None:
-    """The best track in the project's own music folder, if there is one."""
-    if profile.music_file:
-        pinned = Path(profile.music_file).expanduser()
-        if not pinned.is_absolute() and profile.music_dir:
-            pinned = Path(profile.music_dir).expanduser() / profile.music_file
-        if pinned.exists():
-            print(f"  bed  {pinned.name}  (pinned)")
-            return pinned
-        print(f"  music_file not found: {pinned}")
-    if not profile.music_dir:
-        return None
-    folder = Path(profile.music_dir).expanduser()
-    if not folder.exists():
-        print(f"  music_dir not found: {folder}")
-        return None
-
-    ranked = []
-    for track in sorted(folder.rglob("*.mp3")) + sorted(folder.rglob("*.wav")):
-        length = duration(track)
-        if length < need:
-            continue
-        onsets, crest = drive(track)
-        ranked.append((onsets, crest, length, track))
-    if not ranked:
-        print(f"  nothing in {folder} runs {need:.0f}s")
-        return None
-    ranked.sort(reverse=True)
-    onsets, crest, length, best = ranked[0]
-    print(f"  bed  {best.name}  {length:.0f}s  "
-          f"{onsets:.1f} onsets/s from {len(ranked)} candidates")
-    return best
-
-
-def _bed(profile: Profile, work: Path) -> Path | None:
-    """A cue long enough to cover the cut: yours first, then Pixabay."""
-    from demoforge import music_source
+def _bed(profile: Profile, work: Path) -> Path:
+    """A cue long enough to cover the cut: yours first, then Pixabay, then
+    a synthesised one. Copied into the work folder so a rebuild reuses it."""
     need = duration(work / "master.mp4") + 3 + profile.music_offset
-
-    local = _local(profile, need)
-    if local:
-        target = work / f"bed{local.suffix}"
-        target.write_bytes(local.read_bytes())
-        return target
-    for query in profile.music_query:
-        try:
-            slugs = music_source.search(query, limit=8)
-        except Exception as exc:
-            # Pixabay rate-limits, and it does it per query rather than per
-            # session. Giving up on the whole list because the first one was
-            # throttled is how a reel ships silent.
-            print(f"  \"{query}\" failed ({exc.__class__.__name__}); next")
-            continue
-        for slug in slugs:
-            try:
-                found = music_source.fetch(slug, work / "candidates")
-            except Exception:
-                continue
-            if found and duration(found) >= need:
-                print(f"  bed  {found.name}  {duration(found):.0f}s  \"{query}\"")
-                target = work / "bed.mp3"
-                target.write_bytes(found.read_bytes())
-                return target
-
-    # Nothing sourced. Synthesise rather than ship silent -- a generated bed is
-    # worse than a real cue and enormously better than no music at all, and it
-    # is the one option that cannot fail on somebody else's rate limit.
-    print("  nothing sourced; synthesising a bed")
-    from demoforge.music import bed as synth
-    target = work / "bed.wav"
-    synth(need, target, style=profile.music_style, seed=11)
-    return target
+    track = local_track(profile, need) or sourced_track(profile, need, work)
+    if track.parent != work:
+        target = work / f"bed{track.suffix}"
+        target.write_bytes(track.read_bytes())
+        track = target
+    return track
 
 
 def main(argv: list[str] | None = None) -> int:

@@ -10,6 +10,12 @@ delivery -- which is why tuning one there costs you the other.
     python -m demoforge.indextts say --text "..." --emotion "energetic, confident"
     python -m demoforge.indextts script --script narration.json
 
+(with `python` being `.venv-indextts/Scripts/python.exe`).
+
+It runs in its own environment, with checkpoints under `vendor/indextts/`. No
+mode imports it: `script` writes the same `narration.json` that `voice script`
+does, and `assemble` reads that file without knowing which engine spoke.
+
 No speed control is applied by default. This release has no `duration_factor`
 (that is IndexTTS-2.5), so `--pace` is the same post-hoc stretch voice.py uses,
 and it is left at 1.0 so the model's natural pacing can be measured before
@@ -26,6 +32,7 @@ import time
 from pathlib import Path
 
 from demoforge.config import AUDIO, ROOT, VOICE
+from demoforge.media import duration
 
 for _stream in (sys.stdout, sys.stderr):
     if hasattr(_stream, "reconfigure"):
@@ -40,13 +47,6 @@ REFERENCE = VOICE / "reference.wav"
 # produces a confident, wrong emotion rather than an error.
 EMOTIONS = ("happy", "angry", "sad", "afraid",
             "disgusted", "melancholic", "surprised", "calm")
-
-
-def duration(path: Path) -> float:
-    return float(subprocess.run(
-        ["ffprobe", "-v", "error", "-show_entries", "format=duration",
-         "-of", "default=nw=1:nk=1", str(path)],
-        capture_output=True, text=True, check=True).stdout.strip())
 
 
 class Voice:

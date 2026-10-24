@@ -15,6 +15,9 @@ So every feature the modes are built from is also a command here:
     demoforge tool punch     --video take.mp4 --zoom 1.2 --mirror
     demoforge tool voice     --text "..." --reference me.mp3
     demoforge tool lipsync   --video face.mp4 --audio narration.wav
+    demoforge tool matte     --video head.mp4 --over "#0A0B0F"
+    demoforge tool restore   --video synced.mp4
+    demoforge tool voice-check --audio read.wav --reference me.wav
     demoforge tool broll-generate --prompt "A developer's desk at night..."
     demoforge tool broll-search   --query "cafe laptop typing"
 
@@ -39,6 +42,8 @@ from types import SimpleNamespace
 from typing import Any
 
 from demoforge.config import OUT, ROOT
+from demoforge.media import (clean_voice, duration, level_bed, local_track,
+                             loudness, master, probe, sourced_track)
 
 for _stream in (sys.stdout, sys.stderr):
     if hasattr(_stream, "reconfigure"):
@@ -75,17 +80,6 @@ def accent_hex(name: str) -> str:
     return "#%02X%02X%02X" % (r, g, b)
 
 
-def probe(video: Path) -> tuple[int, int, float]:
-    out = subprocess.run(
-        ["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries",
-         "stream=width,height:format=duration", "-of", "json", str(video)],
-        capture_output=True, text=True, check=True).stdout
-    data = json.loads(out)
-    stream = (data.get("streams") or [{}])[0]
-    return (int(stream.get("width") or 0), int(stream.get("height") or 0),
-            float(data.get("format", {}).get("duration") or 0))
-
-
 def _words(video: Path, work: Path, model: str, corrections: dict[str, str]):
     from demoforge.transcribe import correct, transcribe
     print("\n== transcribe ==")
@@ -113,9 +107,7 @@ def score(video: Path, out: Path, music_dir: str = "", music_file: str = "",
           music_ratio: float = 4.0, music_query: list[str] | None = None,
           music_style: str = "lofi", loudness_target: float = -14.0) -> Path:
     """A bed under the voice. The reel's music step, without the reel."""
-    from demoforge.edit import duration, loudness
     from demoforge.music import mix
-    from demoforge.reel import _local
 
     work = out / "work"
     work.mkdir(exist_ok=True)
@@ -126,24 +118,11 @@ def score(video: Path, out: Path, music_dir: str = "", music_file: str = "",
                               music_offset=music_offset, music_style=music_style)
 
     print("\n== bed ==")
-    track = _local(profile, need)
-    if track is None:
-        track = _sourced(profile, need, work)
+    track = local_track(profile, need) or sourced_track(profile, need, work)
 
     print("\n== voice ==")
-    voiced = work / "voice.mp4"
-    subprocess.run(
-        ["ffmpeg", "-y", "-loglevel", "error", "-i", str(video),
-         "-af", "highpass=f=90,afftdn=nr=10:nf=-28,"
-                "acompressor=threshold=-20dB:ratio=3:attack=8:release=180,"
-                "alimiter=limit=0.95",
-         "-c:v", "copy", "-c:a", "pcm_s16le", str(voiced)], check=True)
-
-    flat = work / "bed-level.wav"
-    subprocess.run(
-        ["ffmpeg", "-y", "-loglevel", "error", "-ss", f"{music_offset:.2f}",
-         "-i", str(track), "-af", "loudnorm=I=-18:TP=-2:LRA=5", "-ar", "48000",
-         "-c:a", "pcm_s16le", str(flat)], check=True)
+    voiced = clean_voice(video, work / "voice.mp4")
+    flat = level_bed(track, work / "bed-level.wav", music_offset)
 
     print("\n== mix ==")
     voice_lufs, bed_lufs = loudness(voiced), loudness(flat)
@@ -153,40 +132,10 @@ def score(video: Path, out: Path, music_dir: str = "", music_file: str = "",
     scored = work / "scored.mp4"
     mix(voiced, flat, scored, music_db=gain, duck_db=0.0, ratio=music_ratio,
         release=240)
-    result = out / f"{video.stem}-scored.mp4"
-    subprocess.run(
-        ["ffmpeg", "-y", "-loglevel", "error", "-i", str(scored),
-         "-af", f"loudnorm=I={loudness_target}:TP=-1.2:LRA=9", "-c:v", "copy",
-         "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", str(result)],
-        check=True)
+    result = master(scored, out / f"{video.stem}-scored.mp4", lufs=loudness_target)
     voiced.unlink(missing_ok=True)
     scored.unlink(missing_ok=True)
     return made(result)
-
-
-def _sourced(profile: Any, need: float, work: Path) -> Path:
-    """Pixabay, then a synthesised bed. Never silence."""
-    from demoforge import music_source
-    from demoforge.edit import duration
-    for query in profile.music_query:
-        try:
-            slugs = music_source.search(query, limit=8)
-        except Exception as exc:
-            print(f"  \"{query}\" failed ({exc.__class__.__name__}); next")
-            continue
-        for slug in slugs:
-            try:
-                found = music_source.fetch(slug, work / "candidates")
-            except Exception:
-                continue
-            if found and duration(found) >= need:
-                print(f"  bed  {found.name}  {duration(found):.0f}s  \"{query}\"")
-                return found
-    print("  nothing sourced; synthesising a bed")
-    from demoforge.music import bed as synth
-    target = work / "bed.wav"
-    synth(need, target, style=profile.music_style, seed=11)
-    return target
 
 
 # ---------------------------------------------------------------------------
@@ -225,7 +174,7 @@ def tighten_video(video: Path, out: Path, model: str = "medium.en",
                   pause_cut: float = 0.72, pause_keep: float = 0.30,
                   speed: float = 1.0, mirror: bool = False,
                   corrections: dict[str, str] | None = None) -> Path:
-    from demoforge.edit import duration, lift, tighten
+    from demoforge.edit import lift, tighten
     from demoforge.transcribe import destutter
 
     words = _words(video, out, model, corrections or {})
@@ -334,7 +283,7 @@ def punch(video: Path, out: Path, zoom: float = 1.2, mirror: bool = True,
 
 
 # ---------------------------------------------------------------------------
-# voice, lipsync, b-roll: thin, because the heavy lifting has its own module
+# voice, lipsync, presence, b-roll: thin, because the heavy lifting has its own module
 # ---------------------------------------------------------------------------
 
 
@@ -361,6 +310,42 @@ def lipsync(video: Path, audio: Path, out: Path, chunk: float = 20.0) -> Path:
     print("  " + " ".join(argv[2:]))
     subprocess.run(argv, check=True, cwd=str(ROOT))
     return made(result)
+
+
+def matte(video: Path, out: Path, over: str | None = None,
+          ratio: float | None = None) -> Path:
+    """The presenter cut out of their room: RGBA ProRes, or flattened onto
+    `over` (a #RRGGBB or an image) as h264."""
+    from demoforge import presence
+    suffix = ".mov" if over is None else ".mp4"
+    return made(presence.matte(video, out / f"{video.stem}-matte{suffix}", over, ratio))
+
+
+def restore(video: Path, out: Path, region: str = "mouth",
+            strength: float = 0.85, smooth: float = 0.6) -> Path:
+    """Sharpen the lip-synced mouth, for a presenter shown larger than an inset."""
+    from demoforge import presence
+    return made(presence.restore(video, out / f"{video.stem}-restored.mp4", region,
+                                 strength, smooth))
+
+
+def voice_check(audio: list[Path], out: Path, reference: Path | None = None,
+                words: int | None = None) -> Path:
+    """Pitch, dynamics, pauses and rate of a read, against the voice it clones."""
+    from demoforge import voiceqa
+    ref = voiceqa.analyse(reference) if reference else None
+    rows = []
+    for path in audio:
+        row = voiceqa.analyse(path, words)
+        row["notes"] = voiceqa.verdict(row, ref)
+        rows.append(row)
+        print(f"  {row['file']}  pitch sd {row['pitch_semitone_sd']} st  "
+              f"loudness sd {row['loudness_sd_db']} dB  {row['pauses']} pauses  "
+              f"{row['wpm'] or '-'} wpm  -- {row['notes']}")
+    report = out / "voice-check.json"
+    report.write_text(json.dumps({"reference": ref, "reads": rows}, indent=1),
+                      encoding="utf-8")
+    return made(report)
 
 
 def free_ram_gb() -> float | None:
@@ -610,6 +595,23 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--audio", required=True)
     p.add_argument("--chunk", type=float, default=20.0)
 
+    p = add("matte")
+    p.add_argument("--over", default=None,
+                   help="#RRGGBB or an image to composite onto; omit for RGBA")
+    p.add_argument("--ratio", type=float, default=None)
+
+    p = add("restore")
+    p.add_argument("--region", default="mouth", choices=["mouth", "face"])
+    p.add_argument("--strength", type=float, default=0.85)
+    p.add_argument("--smooth", type=float, default=0.6)
+
+    p = add("voice-check", video=False)
+    p.add_argument("--audio", action="append", required=True,
+                   help="a read to measure; repeat for more")
+    p.add_argument("--reference", default=None, help="the clip being cloned")
+    p.add_argument("--words", type=lambda v: int(float(v)), default=None,
+                   help="word count of the script")
+
     p = add("broll-generate", video=False)
     p.add_argument("--prompt", required=True)
     p.add_argument("--aspect", default="vertical", choices=["vertical", "wide", "square"])
@@ -629,6 +631,7 @@ def main(argv: list[str] | None = None) -> int:
     if video is not None and not video.is_file():
         raise SystemExit(f"no such video: {video}")
     stem = (video.stem if video else
+            Path(args.audio[0]).stem if name == "voice-check" else
             getattr(args, "query", None) or getattr(args, "prompt", "")[:24] or name)
     out = run_dir(name, "".join(c if c.isalnum() else "-" for c in stem), args.out)
     print(f"  {name}  ->  {out}")
@@ -653,6 +656,14 @@ def main(argv: list[str] | None = None) -> int:
         voice(args.text, Path(args.reference).expanduser(), out, args.pace)
     elif name == "lipsync":
         lipsync(video, Path(args.audio).expanduser(), out, args.chunk)
+    elif name == "matte":
+        matte(video, out, args.over, args.ratio)
+    elif name == "restore":
+        restore(video, out, args.region, args.strength, args.smooth)
+    elif name == "voice-check":
+        voice_check([Path(a).expanduser() for a in args.audio], out,
+                    Path(args.reference).expanduser() if args.reference else None,
+                    args.words)
     elif name == "broll-generate":
         broll_generate(args.prompt, out, args.aspect, args.seconds, args.refine)
     elif name == "broll-search":

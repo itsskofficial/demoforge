@@ -19,6 +19,9 @@ The reference clip is the target, not an abstract ideal: it is the person the
 clone is imitating, so its own numbers are what "sounds like them" means.
 
     python -m demoforge.voiceqa out/audio/lab/*.wav --reference assets/voice/reference.wav
+    demoforge tool voice-check --audio read.wav --reference assets/voice/reference.wav
+
+The tool writes the same numbers to a json file as well as printing them.
 """
 
 from __future__ import annotations

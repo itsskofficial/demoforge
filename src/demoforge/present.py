@@ -46,6 +46,7 @@ from pathlib import Path
 from typing import Any
 
 from demoforge.config import FPS, HEIGHT, OUT, PROJECTS, WIDTH
+from demoforge.media import duration, has_video
 
 for _stream in (sys.stdout, sys.stderr):
     if hasattr(_stream, "reconfigure"):
@@ -181,23 +182,6 @@ def load(project: str) -> Profile:
 # ---------------------------------------------------------------------------
 # ffmpeg helpers
 # ---------------------------------------------------------------------------
-
-
-def duration(path: Path) -> float:
-    return float(
-        subprocess.run(
-            ["ffprobe", "-v", "error", "-show_entries", "format=duration",
-             "-of", "default=nw=1:nk=1", str(path)],
-            capture_output=True, text=True, check=True).stdout.strip()
-    )
-
-
-def has_video(path: Path) -> bool:
-    out = subprocess.run(
-        ["ffprobe", "-v", "error", "-select_streams", "v:0",
-         "-show_entries", "stream=codec_type", "-of", "csv=p=0", str(path)],
-        capture_output=True, text=True).stdout.strip()
-    return out.startswith("video")
 
 
 def speech_window(path: Path, threshold: str = "-38dB", minimum: float = 0.35

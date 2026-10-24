@@ -22,7 +22,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "src"))
 
 from demoforge.motion import (  # noqa: E402
-    ACCENT, BG, DIM, FG, GOLD, MUTED, OK, PANEL, WARN, Scene, blend, bold, bubble,
+    ACCENT, DIM, FG, GOLD, MUTED, OK, PANEL, WARN, Scene, blend, bold, bubble,
     count_text, cross, ease_out, glow, grow_bar, mono, panel, regular, rise_text,
     tick, window, wrap,
 )

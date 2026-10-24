@@ -421,3 +421,36 @@ def test_the_line_pinned_to_the_bottom_is_an_aside():
     blocks = [block("Big claim", 60, 0.3),
               block("Nobody writes non-goals.", 20, 0.85)]
     assert _role(blocks[1], blocks) == "footnote"
+
+
+# ---------------------------------------------------------------------------
+# media: which bed gets picked
+# ---------------------------------------------------------------------------
+
+
+def test_the_bed_is_the_busiest_track_long_enough(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+
+    from demoforge import media
+
+    for name in ("pad.mp3", "beat.mp3", "short.wav"):
+        (tmp_path / name).write_bytes(b"")
+    lengths = {"pad.mp3": 120.0, "beat.mp3": 90.0, "short.wav": 20.0}
+    busy = {"pad.mp3": (0.4, 0.1), "beat.mp3": (3.1, 0.6), "short.wav": (9.0, 0.9)}
+    # Measured by ffmpeg in real use; stubbed so the choice itself is what is tested.
+    monkeypatch.setattr(media, "duration", lambda p: lengths[Path(p).name])
+    monkeypatch.setattr(media, "drive", lambda p: busy[Path(p).name])
+
+    folder = SimpleNamespace(music_file="", music_dir=str(tmp_path))
+    # The busiest track that runs long enough, not the busiest track.
+    assert media.local_track(folder, 60).name == "beat.mp3"
+    assert media.local_track(folder, 200) is None
+
+    pinned = SimpleNamespace(music_file="pad.mp3", music_dir=str(tmp_path))
+    assert media.local_track(pinned, 60).name == "pad.mp3"
+
+
+def test_the_old_names_still_import():
+    from demoforge import edit, media, reel
+    assert edit.duration is media.duration and edit.loudness is media.loudness
+    assert reel._local is media.local_track

@@ -47,6 +47,9 @@ from demoforge import captions as caps
 from demoforge import deck as deckmod
 from demoforge import slidekit
 from demoforge.config import OUT, PROJECTS, ROOT
+# Re-exported: `duration` and `loudness` lived here first, and project scripts
+# and the other modes still import them from this module.
+from demoforge.media import clean_voice, duration, loudness, master  # noqa: F401
 from demoforge.transcribe import (ABANDON, Transcript, Word, correct,
                                   destutter, implausible, transcribe)
 
@@ -744,27 +747,6 @@ def _plan_report(profile: Profile, result: dict[str, Any]) -> None:
 # ---------------------------------------------------------------------------
 
 
-def loudness(path: Path) -> float | None:
-    """Integrated loudness of a file's audio, in LUFS.
-
-    Returns None rather than raising: a missing measurement is a reason to
-    fall back to a fixed gain, not a reason to lose the render.
-    """
-    result = subprocess.run(
-        ["ffmpeg", "-hide_banner", "-nostats", "-i", str(path), "-map", "0:a",
-         "-af", "ebur128=framelog=quiet", "-f", "null", "-"],
-        capture_output=True, text=True)
-    found = re.findall(r"I:\s*(-?\d+\.\d+)\s*LUFS", result.stderr)
-    return float(found[-1]) if found else None
-
-
-def duration(path: Path) -> float:
-    return float(subprocess.run(
-        ["ffprobe", "-v", "error", "-show_entries", "format=duration",
-         "-of", "default=nw=1:nk=1", str(path)],
-        capture_output=True, text=True, check=True).stdout.strip())
-
-
 def lift(source: Path, keeps: list[tuple[float, float]], out: Path,
          size: tuple[int, int] | None = None, punch: bool = False,
          speed: float = 1.0, mirror: bool = False) -> Path:
@@ -1054,21 +1036,10 @@ def _sound(profile: Profile, video: Path, work: Path, out: Path) -> Path:
     compressor spends its range on hiss. Normalise *after*, or the bed changes
     the number you normalised to.
     """
-    voiced = work / "voice.mp4"
-    subprocess.run(
-        ["ffmpeg", "-y", "-loglevel", "error", "-i", str(video),
-         "-af", "highpass=f=85,afftdn=nr=10:nf=-28,"
-                "acompressor=threshold=-20dB:ratio=3:attack=8:release=180,"
-                "alimiter=limit=0.95",
-         "-c:v", "copy", "-c:a", "pcm_s16le", str(voiced)],
-        check=True)
+    voiced = clean_voice(video, work / "voice.mp4", highpass=85)
 
     if not profile.music:
-        subprocess.run(
-            ["ffmpeg", "-y", "-loglevel", "error", "-i", str(voiced),
-             "-af", "loudnorm=I=-14:TP=-1.5:LRA=11", "-c:v", "copy",
-             "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", str(out)],
-            check=True)
+        master(voiced, out, lufs=-14, peak=-1.5, lra=11)
         voiced.unlink(missing_ok=True)
         return out
 
@@ -1100,11 +1071,7 @@ def _sound(profile: Profile, video: Path, work: Path, out: Path) -> Path:
     scored = work / "scored.mp4"
     mix(voiced, track, scored, music_db=gain, duck_db=0.0,
         ratio=profile.music_ratio, release=profile.music_release)
-    subprocess.run(
-        ["ffmpeg", "-y", "-loglevel", "error", "-i", str(scored),
-         "-af", "loudnorm=I=-14:TP=-1.5:LRA=11", "-c:v", "copy",
-         "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", str(out)],
-        check=True)
+    master(scored, out, lufs=-14, peak=-1.5, lra=11)
     voiced.unlink(missing_ok=True)
     return out
 

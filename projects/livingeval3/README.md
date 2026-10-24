@@ -16,15 +16,22 @@ because a stranger watching once reads a picture and skims a wall of output.
 | File | What it is |
 |---|---|
 | `narration.json` | The script. Edit this first; everything downstream sizes itself to it. |
-| `scenes.py` | Twelve scenes, each a pure function of time. |
-| `cards.py` | The two cards from the older six-minute cut. |
-| `build.py` | Terminal replays for the older cut. |
-| `HANDOFF.md` | Notes for the earlier, longer, terminal-heavy version. |
+| `scenes.py` | Twelve scenes, each a pure function of time, plus two inserts of real footage. |
+| `capture_browser.py` | The review queue and the dashboard, clicked through in a real browser. |
+| `finish.py` | The presenter, then the music: the last two steps, in the order that matters. |
+| `presenter-windows.json` | The spans the presenter is on screen; read by `finish.py`. |
+| `music-automation.json` | (second, gain dB) points for `music.automate`, the arrangement imposed on the bed. |
+| `MUSIC-LICENCE.md` | Where the bed came from and on what terms. |
+
+The browser shots are the project's, not demoforge's: `capture_browser.py`
+says what to open and where to click, and `demoforge.browser` only drives and
+records. It is the file to copy for a project of your own.
 
 ## Rebuilding it
 
 ```bash
 cd demoforge
+python projects/livingeval3/capture_browser.py review   # livingeval running on :8000
 PYTHONPATH=src .venv/Scripts/python.exe -m demoforge.voice script \
     --script projects/livingeval3/narration.json --outdir out/audio/live3 \
     --cfg-weight 0.24 --gap 0.7 --pace 0.85 --max-chars 120

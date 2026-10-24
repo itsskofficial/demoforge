@@ -1,10 +1,14 @@
-"""Concatenate the segments in RECORDING.md order and write the timecodes.
+"""Concatenate the segments in running order and write the timecodes.
 
 Hard cuts, no crossfades: the boundaries are where the voiceover changes
 subject, and a clean cut is easier to slide around in an editor than a
 dissolve.
 
-    python -m demo.record.stitch
+    python -m demoforge.stitch [out/segments/order-<project>.json]
+
+No mode calls this. `demo` mode's `build` uses `assemble`, which also fits
+each segment to the measured length of its line; this is the picture alone,
+end to end, for watching the running order before anything has been spoken.
 """
 
 from __future__ import annotations
@@ -15,18 +19,11 @@ import sys
 from pathlib import Path
 
 from demoforge.config import OUT as OUTDIR, SEGMENTS as SEG
+from demoforge.media import duration
 
 # The running order is the project's, not demoforge's: a profile writes
 # `order.json` as a list of {segment, step, voiceover} and this reads it.
 ORDER_FILE = SEG / "order.json"
-
-
-def duration(path: Path) -> float:
-    out = subprocess.run(
-        ["ffprobe", "-v", "error", "-show_entries", "format=duration",
-         "-of", "default=nw=1:nk=1", str(path)],
-        capture_output=True, text=True, check=True).stdout.strip()
-    return float(out)
 
 
 def tc(seconds: float) -> str:

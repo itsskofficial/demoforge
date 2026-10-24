@@ -23,6 +23,12 @@ That lands a natural rate with no processing artifacts, and it turns pacing
 into an editable text file rather than a model property.
 
 Adapted from SkillsForge's explainer-video local-tts notes.
+
+A library, not a command, and nothing calls it yet: `voice` still speaks a
+line whole. It is kept because the measurements above are why that path's
+pacing is the way it is, and this is the shape the fix takes when it lands --
+`auto_phrases` for a first draft of the phrasing, `trim` on each generated
+phrase (a torch tensor, channels first).
 """
 
 from __future__ import annotations

@@ -14,13 +14,12 @@ Frames go straight to ffmpeg over a pipe; nothing touches the disk but the mp4.
 
 from __future__ import annotations
 
-import json
 import subprocess
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from demoforge.config import FPS, SEGMENTS as OUT, SESSIONS
+from demoforge.config import FPS
 from demoforge.terminal import Painter, Screen
 
 COLS = 112

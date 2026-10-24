@@ -39,8 +39,8 @@ from typing import Any
 from PIL import Image, ImageDraw, ImageFilter
 
 from demoforge import reelkit as rk
-from demoforge.config import OUT, PROJECTS, ROOT
-from demoforge.edit import duration, loudness
+from demoforge.config import OUT, PROJECTS
+from demoforge.media import duration, local_track, loudness
 
 for _stream in (sys.stdout, sys.stderr):
     if hasattr(_stream, "reconfigure"):
@@ -481,8 +481,7 @@ def _score(profile: Profile, video: Path, work: Path, out: Path) -> Path:
     """Music only. There is no voice here, so nothing has to duck."""
     track = None
     if profile.music:
-        from demoforge.reel import _local
-        track = _local(profile, profile.seconds + profile.music_offset + 1)
+        track = local_track(profile, profile.seconds + profile.music_offset + 1)
     if not track:
         subprocess.run(
             ["ffmpeg", "-y", "-loglevel", "error", "-i", str(video),

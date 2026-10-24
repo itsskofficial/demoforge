@@ -28,6 +28,7 @@ already real, which is exactly how a re-dub starts to look like a stranger.
     python -m demoforge.presence matte   --video head.mp4 --out head.mov
     python -m demoforge.presence matte   --video head.mp4 --out on-deck.mp4 --over "#0A0B0F"
     python -m demoforge.presence restore --video face.mp4 --out sharp.mp4
+    demoforge tool matte   --video head.mp4      the same, as a tool; likewise restore
 
 Both stream frames through ffmpeg pipes rather than decoding to an array.
 LatentSync's habit of holding the whole driver in memory is what forced
@@ -45,6 +46,7 @@ from pathlib import Path
 import numpy as np
 
 from demoforge.config import OUT
+from demoforge.media import has_audio
 
 for _stream in (sys.stdout, sys.stderr):
     if hasattr(_stream, "reconfigure"):
@@ -115,11 +117,7 @@ def writer(out: Path, width: int, height: int, fps: float, alpha: bool = False):
 
 def revoice(silent: Path, source: Path, out: Path) -> Path:
     """Put the original audio back on a processed picture."""
-    has_audio = subprocess.run(
-        ["ffprobe", "-v", "error", "-select_streams", "a", "-show_entries",
-         "stream=index", "-of", "csv=p=0", str(source)],
-        capture_output=True, text=True).stdout.strip()
-    if not has_audio:
+    if not has_audio(source):
         silent.replace(out)
         return out
     subprocess.run(

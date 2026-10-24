@@ -1,25 +1,35 @@
-"""Record the review queue and the dashboard as video.
+"""Drive a real browser and keep the recording.
 
 Playwright drives a real Chromium and records it, so this works whether or not
 anyone is looking at the screen -- no window has to be visible, focused or
 unlocked. The clicks are real clicks against the real server; the only thing
 added is a drawn cursor, because a browser's own pointer is not in the capture.
 
-    python -m demo.record.browser review
-    python -m demo.record.browser dashboard
+This is the engine only. What to open and where to click belongs to the
+project: a shot is a function of `(page, hand)`, and `session` records one.
+
+    from demoforge.browser import Hand, session, visit
+
+    def tour(page, hand: Hand) -> None:
+        visit(page, hand, "/")              # relative to DEMOFORGE_BASE_URL
+        hand.click("text=Settings")
+        hand.scroll(700)
+
+    session("s3_tour", tour)                # -> out/segments/s3_tour.mp4
+
+`projects/livingeval3/capture_browser.py` is a worked example.
 """
 
 from __future__ import annotations
 
 import math
 import subprocess
-import sys
 import time
 from pathlib import Path
+from typing import Callable
 
-from playwright.sync_api import sync_playwright
-
-from demoforge.config import BASE_URL as BASE, OUT as _OUT, SEGMENTS as OUT
+from demoforge.config import BASE_URL as BASE, HEIGHT, OUT as _OUT, SEGMENTS as OUT, WIDTH
+from demoforge.media import duration
 
 RAW = _OUT / "_browser_raw"
 
@@ -64,6 +74,12 @@ class Hand:
         self.x = 960.0
         self.y = 900.0
 
+    def place(self, x: float, y: float) -> None:
+        """Put the cursor somewhere without travelling, e.g. on a fresh page."""
+        self.x, self.y = x, y
+        self.page.evaluate("([x,y]) => window.__moveCursor && window.__moveCursor(x,y)",
+                           [x, y])
+
     def move(self, x: float, y: float, seconds: float = 0.7) -> None:
         steps = max(2, int(seconds * 60))
         x0, y0 = self.x, self.y
@@ -96,31 +112,48 @@ class Hand:
             time.sleep(seconds / steps)
 
 
-def _finish(video_path: Path, out: Path, fps: int = 30) -> None:
+def visit(page, hand: Hand, url: str, at: tuple[float, float] = (960, 900)) -> None:
+    """Open a page and put the drawn cursor on it.
+
+    The init script runs before there is a body to attach to, so the cursor is
+    injected again once the page has loaded -- that second one is the one that
+    is actually seen. A leading `/` is relative to the project's server.
+    """
+    page.goto(f"{BASE}{url}" if url.startswith("/") else url, wait_until="networkidle")
+    page.evaluate(CURSOR)
+    hand.place(*at)
+
+
+def finish(video_path: Path, out: Path, fps: int = 30,
+           pad: str = "0x0d1117") -> Path:
+    """Re-encode Playwright's webm to the frame every other segment uses."""
     out.parent.mkdir(parents=True, exist_ok=True)
     subprocess.run(
         ["ffmpeg", "-y", "-loglevel", "error", "-i", str(video_path),
-         "-vf", f"scale=1920:1080:force_original_aspect_ratio=decrease,"
-                f"pad=1920:1080:(ow-iw)/2:(oh-ih)/2:color=0x0d1117,fps={fps}",
+         "-vf", f"scale={WIDTH}:{HEIGHT}:force_original_aspect_ratio=decrease,"
+                f"pad={WIDTH}:{HEIGHT}:(ow-iw)/2:(oh-ih)/2:color={pad},fps={fps}",
          "-c:v", "libx264", "-preset", "medium", "-crf", "18",
          "-pix_fmt", "yuv420p", "-movflags", "+faststart", str(out)],
         check=True,
     )
-    dur = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration",
-                          "-of", "default=nw=1:nk=1", str(out)],
-                         capture_output=True, text=True).stdout.strip()
-    print(f"  {out.name}  {dur}s")
+    print(f"  {out.name}  {duration(out):.2f}s")
+    return out
 
 
-def _session(name: str, body) -> None:
+def session(name: str, body: Callable, out_dir: Path = OUT) -> Path:
+    """Record one shot: a fresh browser, `body(page, hand)`, then `finish`."""
+    # Imported here so a project that only wants `CURSOR` for its own
+    # Playwright script does not need this module to pull it in first.
+    from playwright.sync_api import sync_playwright
+
     RAW.mkdir(parents=True, exist_ok=True)
     with sync_playwright() as p:
         browser = p.chromium.launch(args=["--force-color-profile=srgb",
                                           "--hide-scrollbars"])
         context = browser.new_context(
-            viewport={"width": 1920, "height": 1080},
+            viewport={"width": WIDTH, "height": HEIGHT},
             record_video_dir=str(RAW),
-            record_video_size={"width": 1920, "height": 1080},
+            record_video_size={"width": WIDTH, "height": HEIGHT},
             device_scale_factor=1,
         )
         context.add_init_script(CURSOR)
@@ -132,45 +165,4 @@ def _session(name: str, body) -> None:
             context.close()
             browser.close()
             src = Path(video.path())
-    _finish(src, OUT / f"{name}.mp4")
-
-
-def review(page, hand: Hand) -> None:
-    page.goto(f"{BASE}/review", wait_until="networkidle")
-    page.evaluate(CURSOR)
-    page.evaluate("() => window.__moveCursor(960, 900)")
-    time.sleep(3.0)                       # land on the queue and let it be read
-    for i in range(3):
-        page.wait_for_selector(".actions button", timeout=15000)
-        time.sleep(3.2)                   # read the conversation on the card
-        hand.move(760, 560, 0.6)          # drift over the turns, as if reading
-        time.sleep(1.6)
-        # Confirm the judge's label rather than overriding it: the point on screen
-        # is that a human is the one clicking, not which way they clicked.
-        label = ".actions button.pass" if page.locator(".tag.sug-pass").count() \
-            else ".actions button.fail"
-        hand.click(label)
-        time.sleep(1.4)
-    time.sleep(2.5)
-
-
-def dashboard(page, hand: Hand) -> None:
-    page.goto(f"{BASE}/", wait_until="networkidle")
-    page.evaluate(CURSOR)
-    page.evaluate("() => window.__moveCursor(960, 880)")
-    time.sleep(4.0)
-    hand.move(1200, 420, 1.1)
-    time.sleep(2.0)
-    hand.scroll(700, 1.6)
-    time.sleep(3.0)
-    hand.scroll(700, 1.4)
-    time.sleep(3.5)
-    hand.scroll(-1400, 1.4)
-    time.sleep(2.5)
-
-
-if __name__ == "__main__":
-    which = sys.argv[1] if len(sys.argv) > 1 else "review"
-    print(f"[browser] {which}")
-    _session({"review": "s5b_review", "dashboard": "s7_dashboard"}[which],
-             {"review": review, "dashboard": dashboard}[which])
+    return finish(src, out_dir / f"{name}.mp4")

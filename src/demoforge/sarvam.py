@@ -3,7 +3,8 @@
 Deliberately the same shape as `demoforge.voice`: `say` writes a wav and
 returns its length, `script` writes `narration.json`. That means
 `demoforge.assemble` does not know or care which engine spoke the lines, and
-switching is a one-word change rather than a rewrite.
+switching is a one-word change rather than a rewrite. That file is the whole
+integration -- no mode imports this module.
 
 Bulbul is a hosted API, so unlike Chatterbox the text and the resulting audio
 leave the machine. It is also a *curated* voice rather than yours, unless a
@@ -33,6 +34,7 @@ import urllib.request
 from pathlib import Path
 
 from demoforge.config import AUDIO, ROOT
+from demoforge.media import duration
 
 for _stream in (sys.stdout, sys.stderr):
     if hasattr(_stream, "reconfigure"):
@@ -141,10 +143,7 @@ def say(text: str, out: Path, speaker: str = "anand", pace: float = PACE,
         for path in pieces + [listing, silence]:
             path.unlink(missing_ok=True)
 
-    seconds = float(subprocess.run(
-        ["ffprobe", "-v", "error", "-show_entries", "format=duration",
-         "-of", "default=nw=1:nk=1", str(out)],
-        capture_output=True, text=True, check=True).stdout.strip())
+    seconds = duration(out)
     words = len(text.split())
     print(f"  {out.name}  {seconds:.1f}s  ({words / seconds * 60:.0f} wpm)")
     return seconds
