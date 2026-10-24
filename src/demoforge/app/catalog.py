@@ -51,6 +51,10 @@ class Step:
     help: str
     argv: list[str]           # after `demoforge`; {project} and {field} substituted
     needs: list[str] = field(default_factory=list)   # artifact keys that should exist first
+    # Flag groups appended after `argv`, each only when every field it names is
+    # filled in. A blank in `argv` itself is an error; a blank here drops the
+    # group, so an optional clip never reaches the CLI as `--src ""`.
+    optional: list[list[str]] = field(default_factory=list)
     makes: list[str] = field(default_factory=list)   # artifact keys this produces
     heavy: bool = False       # minutes, not seconds
     options: list[Field] = field(default_factory=list)   # per-run switches
@@ -412,7 +416,8 @@ DEMO = Mode(
         Field("pace", "Pace", "number", group="sound", default=0.85, step=0.05,
               min=0.6, max=1.2, help="Below 1 slows the cloned voice down."),
         Field("music_style", "Music", "select", group="sound", default="lofi",
-              options=["lofi", "trap", "none"]),
+              options=["lofi", "trap"],
+              help="The bed the Music step synthesises. Skip that step for none."),
     ],
     steps=[
         Step("plan", "Plan", "Read the repository and propose scenes and narration. "
@@ -420,8 +425,11 @@ DEMO = Mode(
              ["plan", "--repo", "{repo}", "--seconds", "{seconds}",
               "--audience", "{audience}", "--out", "{project_dir}/plan.json"],
              makes=["plan"]),
+        # The reference is re-cut from the clip on every run, so changing the
+        # clip changes the voice; with no clip, the last reference is reused.
         Step("voice", "Voice", "Clone the voice from the clip and speak the narration.",
              ["voice", "--script", "{project_dir}/narration.json", "--pace", "{pace}"],
+             optional=[["--src", "{voice_clip}"]],
              needs=["plan"], makes=["narration"], heavy=True),
         Step("face", "Face", "Prepare the presenter footage from the face clip. "
              "Skip it for a demo with no face in the corner.",
@@ -431,6 +439,12 @@ DEMO = Mode(
              needs=["narration"], makes=["film"], heavy=True,
              options=[Field("only", "Only these stages", "text", default="",
                             help="scenes,assemble,face,compose", create=False)]),
+        Step("music", "Music", "Synthesise a bed in the chosen style, as long as the "
+             "demo, and duck it under the narration.",
+             ["music", "--video", "{out_dir}/{project}-final.mp4",
+              "--style", "{music_style}", "--music", "{out_dir}/{project}-bed.wav",
+              "--out", "{out_dir}/{project}-scored.mp4"],
+             needs=["film"], makes=["scored"]),
     ],
     artifacts=[
         Artifact("plan", "Plan", "project", "plan.json", "json"),
@@ -438,6 +452,7 @@ DEMO = Mode(
         Artifact("narration", "Spoken narration", "out", "audio/narration.json", "json"),
         Artifact("driver", "Presenter footage", "root", "assets/face/driver.mp4", "video"),
         Artifact("film", "The demo", "out", "{name}-final.mp4", "video"),
+        Artifact("scored", "The demo, scored", "out", "{name}-scored.mp4", "video"),
         Artifact("silent", "Silent cut", "out", "{name}-silent.mp4", "video"),
     ],
     output="film",
@@ -620,6 +635,40 @@ TOOLS: dict[str, Tool] = {t.key: t for t in (
           Field("min_seconds", "At least", "number", default=5, step=1, min=1,
                 help="Seconds long.")],
          "clips, each with its licence record", ["pixabay"]),
+    Tool("matte", "Matte",
+         "Cut the person out of their background.",
+         "Separates the speaker from the room with a video matting model and "
+         "writes the cutout with an alpha channel, or lays it over another clip "
+         "when you give one. Use it as an invisible depth layer: graphics behind "
+         "the speaker, the footage itself unchanged.",
+         ["A video of a person"],
+         [_video,
+          Field("over", "Lay over", "path", filters=VIDEO,
+                help="Optional background clip; without it you get an alpha .mov."),
+          Field("ratio", "Downsample", "number", default=None, step=0.05, min=0.1, max=1,
+                help="Model resolution; blank lets it choose.")],
+         "the cutout, with alpha or composited", ["ffmpeg", "torch"], heavy=True),
+    Tool("restore", "Restore",
+         "Sharpen a lip-synced mouth or face back up.",
+         "Runs face restoration over the region lip-sync softened, blended back "
+         "at the strength you set and smoothed over time so it does not flicker.",
+         ["A lip-synced video"],
+         [_video,
+          Field("region", "Region", "select", default="mouth", options=["mouth", "face"]),
+          Field("strength", "Strength", "number", default=0.85, step=0.05, min=0, max=1),
+          Field("smooth", "Smoothing", "number", default=0.6, step=0.05, min=0, max=1)],
+         "the restored video", ["ffmpeg", "torch"], heavy=True),
+    Tool("voice_check", "Voice check",
+         "Score generated narration before you build on it.",
+         "Measures pace, loudness, clipping and how closely the narration matches "
+         "the reference voice, and writes the numbers to voice-check.json, so a "
+         "bad generation is caught before the picture is cut to it.",
+         ["Narration audio", "Optional: the reference clip"],
+         [Field("audio", "Narration", "path", required=True, filters=AUDIO),
+          Field("reference", "Reference clip", "path", filters=AUDIO),
+          Field("words", "Script words", "number", default=None, step=1, min=1,
+                help="Word count, for pace in words per minute.")],
+         "voice-check.json", ["ffmpeg"]),
 )}
 
 

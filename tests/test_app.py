@@ -29,9 +29,9 @@ def test_every_step_refers_to_declared_artifacts():
 def test_every_argv_placeholder_is_a_field_or_builtin():
     import re
     for mode in catalog.MODES.values():
-        fields = {f.key for f in mode.fields} | {"project", "project_dir"}
+        fields = {f.key for f in mode.fields} | {"project", "project_dir", "out_dir"}
         for step in mode.steps:
-            for token in step.argv:
+            for token in step.argv + [t for group in step.optional for t in group]:
                 for name in re.findall(r"\{(\w+)\}", token):
                     assert name in fields, f"{mode.key}.{step.key} uses {{{name}}}"
 
@@ -113,6 +113,106 @@ def test_missing_placeholder_is_a_client_error(server, tmp_path):
     from fastapi import HTTPException
     with pytest.raises(HTTPException):
         server.build_argv(catalog.DEMO, catalog.DEMO.step("plan"), "d", tmp_path, {}, {})
+
+
+def test_an_optional_flag_drops_out_when_its_field_is_blank(server, tmp_path):
+    voice = catalog.DEMO.step("voice")
+    argv = server.build_argv(catalog.DEMO, voice, "d", tmp_path,
+                             {"pace": 0.85, "voice_clip": ""}, {})
+    assert "--src" not in argv
+    argv = server.build_argv(catalog.DEMO, voice, "d", tmp_path,
+                             {"pace": 0.85, "voice_clip": "me.mp3"}, {})
+    assert argv[argv.index("--src") + 1] == "me.mp3"
+
+
+def test_a_blank_required_field_is_a_client_error(server, tmp_path):
+    """`face` needs --src; a blank clip must stop here, not as an argparse
+    usage dump in the job log."""
+    from fastapi import HTTPException
+    with pytest.raises(HTTPException, match="face_clip"):
+        server.build_argv(catalog.DEMO, catalog.DEMO.step("face"), "d", tmp_path,
+                          {"face_clip": ""}, {})
+
+
+# ---------------------------------------------------------------------------
+# every button is a command the CLI accepts
+# ---------------------------------------------------------------------------
+
+
+class _Parsed(Exception):
+    """Raised in place of running a command, once its parser has accepted it."""
+
+
+def _plausible(f: catalog.Field) -> object:
+    """A value a person might have typed, for fields whose default is blank."""
+    if f.default not in (None, "", [], {}):
+        return f.default
+    return {"path": "clip.mp4", "paths": ["a.mp4"], "folder": "repo",
+            "list": ["One *two*"], "bool": True, "number": 1.5,
+            "corrections": {"wipe": "vibe"}}.get(f.kind, "words")
+
+
+# Commands whose `cmd_*` only rebuilds argv for a module's own parser before
+# anything runs. The rest (voice, face, build, music) do work before or
+# instead of a second parse, so they are checked against the top level only.
+_DISPATCH = {"edit", "reel", "short", "present", "tool", "plan"}
+
+
+def _accepts(argv: list[str], monkeypatch) -> None:
+    """Parse `argv` the way `demoforge` would, without running it: the top
+    level, then the mode's own parser that `cmd_*` hands it on to."""
+    import argparse
+    import sys
+
+    from demoforge import cli
+
+    shown = " ".join(argv)
+    try:
+        args = cli.build_parser().parse_args(argv)
+    except SystemExit:
+        pytest.fail(f"demoforge refuses: {shown}")
+    if args.cmd not in _DISPATCH:
+        return
+
+    real = argparse.ArgumentParser.parse_args
+
+    def parse_then_stop(self, *a, **k):
+        real(self, *a, **k)
+        raise _Parsed
+
+    with monkeypatch.context() as m:
+        m.setattr(argparse.ArgumentParser, "parse_args", parse_then_stop)
+        m.setattr(sys, "argv", list(sys.argv))     # `plan` rewrites it
+        try:
+            args.fn(args)
+        except _Parsed:
+            return
+        except SystemExit:
+            pytest.fail(f"demoforge {args.cmd} refuses what the CLI passed it: {shown}")
+    pytest.fail(f"{shown} ran without reaching a parser")
+
+
+def test_every_step_and_tool_argv_is_accepted_by_the_cli(server, tmp_path, monkeypatch):
+    """The catalog and the CLI are written separately; this is where they meet.
+
+    Every step is rendered with plausible values, once with its options at
+    their defaults and once with every option set, and handed to the real
+    parsers. A button whose command the CLI does not know is otherwise found
+    by clicking it."""
+    for mode in catalog.MODES.values():
+        profile = {f.key: _plausible(f) for f in mode.fields}
+        for step in mode.steps:
+            for options in ({}, {o.key: _plausible(o) for o in step.options}):
+                argv = server.build_argv(mode, step, "p", tmp_path, profile, options)
+                _accepts(argv[argv.index("demoforge.cli") + 1:], monkeypatch)
+
+    (tmp_path / "clip.mp4").write_bytes(b"")
+    for tool in catalog.TOOLS.values():
+        options = {f.key: _plausible(f) for f in tool.fields}
+        options = {k: str(tmp_path / v) if v == "clip.mp4" else v
+                   for k, v in options.items()}       # tools check the file exists
+        argv = server.tool_argv(tool, options, tmp_path / "run")
+        _accepts(argv[argv.index("demoforge.cli") + 1:], monkeypatch)
 
 
 def test_allowed_paths(server, tmp_path):

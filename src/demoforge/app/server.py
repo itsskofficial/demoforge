@@ -21,6 +21,7 @@ import shutil
 import subprocess
 import sys
 import time
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
@@ -40,7 +41,25 @@ ENV = ROOT / ".env"
 KEYS = ("ANTHROPIC_API_KEY", "PIXABAY_API_KEY")
 NAME = re.compile(r"[^a-z0-9]+")
 
-app = FastAPI(title="demoforge", version=__version__, docs_url=None, redoc_url=None)
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    loop = asyncio.get_running_loop()
+    bridge.attach(loop)
+    if sys.platform == "win32":
+        # A browser aborting a video range request closes the socket hard,
+        # and the proactor loop reports every one as an exception. It is not.
+        default = loop.get_exception_handler()
+
+        def quiet(loop_, context):
+            if isinstance(context.get("exception"), ConnectionResetError):
+                return
+            (default or loop_.default_exception_handler)(context)
+        loop.set_exception_handler(quiet)
+    yield
+
+
+app = FastAPI(title="demoforge", version=__version__, docs_url=None, redoc_url=None,
+              lifespan=lifespan)
 runner = Runner()
 bridge = Bridge(runner)
 
@@ -299,24 +318,24 @@ def create_project(mode: catalog.Mode, name: str, profile: dict[str, Any]) -> Pa
 
 def build_argv(mode: catalog.Mode, step: catalog.Step, name: str, directory: Path,
                profile: dict[str, Any], options: dict[str, Any]) -> list[str]:
-    values = {**profile, "project": name, "project_dir": str(directory)}
+    values = {**profile, "project": name, "project_dir": str(directory),
+              "out_dir": str(out_dir())}
+
+    def blank(key: str) -> bool:
+        return values.get(key) in (None, "")
 
     def fill(token: str) -> str:
         def sub(match: re.Match) -> str:
             key = match.group(1)
-            if key not in values:
+            if blank(key):
                 raise HTTPException(400, f"step {step.key} needs `{key}` in the profile")
             return str(values[key])
         return re.sub(r"\{(\w+)\}", sub, token)
 
     argv = [fill(t) for t in step.argv]
-
-    # The demo path keeps its voice reference outside the project: the first
-    # voice run has to prepare it from the clip.
-    if mode.key == "demo" and step.key == "voice" and profile.get("voice_clip"):
-        from demoforge.config import VOICE
-        if not (VOICE / "reference.wav").exists():
-            argv += ["--src", str(profile["voice_clip"])]
+    for group in step.optional:
+        if not any(blank(k) for t in group for k in re.findall(r"\{(\w+)\}", t)):
+            argv += [fill(t) for t in group]
 
     for opt in step.options:
         value = options.get(opt.key, opt.default)
@@ -406,22 +425,6 @@ def doctor() -> list[dict[str, Any]]:
 # ---------------------------------------------------------------------------
 # routes
 # ---------------------------------------------------------------------------
-
-
-@app.on_event("startup")
-async def _startup() -> None:
-    loop = asyncio.get_running_loop()
-    bridge.attach(loop)
-    if sys.platform == "win32":
-        # A browser aborting a video range request closes the socket hard,
-        # and the proactor loop reports every one as an exception. It is not.
-        default = loop.get_exception_handler()
-
-        def quiet(loop_, context):
-            if isinstance(context.get("exception"), ConnectionResetError):
-                return
-            (default or loop_.default_exception_handler)(context)
-        loop.set_exception_handler(quiet)
 
 
 @app.get("/api/ping")

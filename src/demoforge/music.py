@@ -13,6 +13,7 @@ what makes a demo feel scored rather than soundtracked.
 
     python -m demoforge.music bed --seconds 180 --style lofi
     python -m demoforge.music mix --video cut.mp4 --music bed.wav --out final.mp4
+    demoforge music --video cut.mp4 --style lofi     both, the bed sized to the cut
 """
 
 from __future__ import annotations
@@ -245,7 +246,7 @@ def automate(bed: Path, out: Path, points: list[tuple[float, float]],
 
 def mix(video: Path, music: Path, out: Path, music_db: float = -23.0,
         duck_db: float = -14.0, release: int = 380, attack: int = 8,
-        ratio: float = 12) -> Path:
+        ratio: float = 12, lufs: float = -14.0) -> Path:
     """Lay `music` under `video`, ducking it whenever the narration speaks.
 
     `music_db` is the resting level of the bed; `duck_db` is how far it drops
@@ -262,6 +263,10 @@ def mix(video: Path, music: Path, out: Path, music_db: float = -23.0,
     in the abstract, but if the pauses between lines are shorter than it, the
     bed never recovers and the music simply sits low throughout. Measure a gap
     in your own edit and set this under it.
+
+    The finished mix is mastered once, to `lufs` integrated and -1 dB true
+    peak: -14 is where social feeds normalise, so a quieter master just plays
+    quieter than everything around it.
     """
     has_audio = subprocess.run(
         ["ffprobe", "-v", "error", "-select_streams", "a", "-show_entries",
@@ -281,7 +286,7 @@ def mix(video: Path, music: Path, out: Path, music_db: float = -23.0,
         f"release={release}:makeup=1:level_sc=1[ducked];"
         f"[ducked]volume={duck_db}dB[quiet];"
         f"[voice][quiet]amix=inputs=2:duration=first:dropout_transition=0,"
-        f"loudnorm=I=-16:TP=-1.5:LRA=11[a]"
+        f"loudnorm=I={lufs}:TP=-1:LRA=11[a]"
     )
     subprocess.run(
         ["ffmpeg", "-y", "-loglevel", "error", "-i", str(video), "-i", str(music),
@@ -291,6 +296,27 @@ def mix(video: Path, music: Path, out: Path, music_db: float = -23.0,
         check=True)
     print(f"  {out.name}  music under narration ({music_db:+.0f}dB, ducking {duck_db:+.0f}dB)")
     return out
+
+
+def duration(path: Path) -> float:
+    return float(subprocess.run(
+        ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+         "-of", "default=nw=1:nk=1", str(path)],
+        capture_output=True, text=True, check=True).stdout.strip())
+
+
+def score(video: Path, music: Path, out: Path, style: str = "lofi", seed: int = 0,
+          music_db: float = -23.0, duck_db: float = -14.0) -> Path:
+    """Synthesise a bed exactly as long as `video`, then lay it under it.
+
+    Sized to the cut rather than looped: the bed's own fade-out then lands on
+    the last frame instead of somewhere in the middle of a second pass.
+    """
+    if music.exists() and music.suffix.lower() != ".wav":
+        # never overwrite a sourced track with a synthesised one
+        music = music.with_suffix(".bed.wav")
+    bed(duration(video), music, style, seed)
+    return mix(video, music, out, music_db, duck_db)
 
 
 def main() -> int:

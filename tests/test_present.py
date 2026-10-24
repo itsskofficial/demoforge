@@ -182,17 +182,26 @@ def test_the_script_names_the_takes_directory(tmp_path):
 # ---------------------------------------------------------------------------
 
 
+PROBEIT = Path(__file__).resolve().parents[1] / "projects" / "probeit"
+
+# projects/ is ignored by git apart from livingeval3, so a fresh checkout has
+# no probeit: the layout tests skip there instead of failing on a missing file.
+needs_probeit = pytest.mark.skipif(not (PROBEIT / "slides.py").exists(),
+                                   reason="projects/probeit is not in this checkout")
+
+
 def deck():
-    """The bundled probeit deck, which is where the layout helpers live."""
+    """The probeit deck, which is where the layout helpers live."""
     import importlib.util
 
-    path = Path(__file__).resolve().parents[1] / "projects" / "probeit" / "slides.py"
+    path = PROBEIT / "slides.py"
     spec = importlib.util.spec_from_file_location("probeit_slides", path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
 
 
+@needs_probeit
 def test_the_reserved_corner_matches_where_compose_puts_the_inset():
     """`pip_box` duplicates a constant from `present.presenter_corner`.
 
@@ -205,12 +214,14 @@ def test_the_reserved_corner_matches_where_compose_puts_the_inset():
     assert deck().pip_box(w, h) == (w - size - 56, h - size - 56)
 
 
+@needs_probeit
 def test_a_band_above_the_inset_keeps_the_full_width():
     module = deck()
     edge = module.right_edge(1920, 1080, {"presenter": "corner"}, 200, 400)
     assert edge == 1920 - int(1920 * 0.07)
 
 
+@needs_probeit
 def test_a_band_overlapping_the_inset_stops_short_of_it():
     module = deck()
     pip_x, _ = module.pip_box(1920, 1080)
@@ -218,12 +229,14 @@ def test_a_band_overlapping_the_inset_stops_short_of_it():
     assert edge < pip_x
 
 
+@needs_probeit
 def test_no_inset_means_no_reservation():
     module = deck()
     for framing in ({"presenter": "off"}, {"presenter": "full"}, {}):
         assert module.right_edge(1920, 1080, framing, 700, 900) == 1920 - int(1920 * 0.07)
 
 
+@needs_probeit
 def test_row_pitch_is_bounded_at_both_ends():
     """Floored so rows never overlap, capped so a tall frame does not give
     four thin bands of text floating in four large empty rectangles."""
@@ -233,14 +246,21 @@ def test_row_pitch_is_bounded_at_both_ends():
     assert 80 < module.pitch(1080, 200, 4) < 230      # neither
 
 
+@needs_probeit
 def test_every_named_slide_is_dispatchable():
+    """Derived, not pinned: the deck changes with the talk. What must hold is
+    that every slide the presentation asks for is in the table, and that
+    every `slide_*` drawer written is reachable from it."""
     module = deck()
-    assert set(module.SLIDES) == {
-        "leak", "control", "ladder", "always_works",
-        "matched", "result", "bug", "power",
-    }
+    wanted = {s.visual_name for s in load(str(PROBEIT)).sections
+              if s.visual_kind == "slide"}
+    assert wanted <= set(module.SLIDES), wanted - set(module.SLIDES)
+    drawers = {getattr(module, n) for n in dir(module) if n.startswith("slide_")}
+    assert drawers <= set(module.SLIDES.values())
+    assert all(callable(fn) for fn in module.SLIDES.values())
 
 
+@needs_probeit
 def test_an_unknown_slide_lists_what_is_available(tmp_path):
     module = deck()
     with pytest.raises(SystemExit, match="Available:"):

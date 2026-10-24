@@ -184,3 +184,39 @@ def test_speaking_windows_skip_segments_with_no_line(tmp_path):
                                  {"segment": "b", "length": 4.0}]), encoding="utf-8")
 
     assert speaking_windows(narration, order, pad=0.0) == [(3.0, 5.0)]
+
+
+# ---------------------------------------------------------------------------
+# `demoforge music`
+# ---------------------------------------------------------------------------
+
+
+def _music_calls(monkeypatch, argv):
+    from demoforge import cli, music
+
+    calls = []
+    monkeypatch.setattr(music, "duration", lambda path: 42.5)
+    monkeypatch.setattr(music, "bed", lambda *a: calls.append(("bed", *a)))
+    monkeypatch.setattr(music, "mix", lambda *a: calls.append(("mix", *a)))
+    assert cli.main(["music", *argv]) == 0
+    return calls
+
+
+def test_a_style_with_a_video_makes_a_bed_the_length_of_the_cut(monkeypatch, tmp_path):
+    """Not the stale bed.wav from some earlier, differently long cut."""
+    bed = tmp_path / "bed.wav"
+    calls = _music_calls(monkeypatch, ["--video", "cut.mp4", "--style", "trap",
+                                       "--music", str(bed)])
+    assert [c[0] for c in calls] == ["bed", "mix"]
+    assert calls[0][1:4] == (42.5, bed, "trap")
+    assert calls[1][1:3] == (Path("cut.mp4"), bed)
+
+
+def test_a_video_without_a_style_mixes_the_bed_it_is_given(monkeypatch):
+    calls = _music_calls(monkeypatch, ["--video", "cut.mp4"])
+    assert [c[0] for c in calls] == ["mix"]
+
+
+def test_no_video_only_makes_a_bed(monkeypatch):
+    calls = _music_calls(monkeypatch, ["--seconds", "30"])
+    assert calls == [("bed", 30.0, calls[0][2], "lofi", 0)]

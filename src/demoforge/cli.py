@@ -95,11 +95,17 @@ def cmd_init(args) -> int:
 
 
 def cmd_music(args) -> int:
-    from demoforge.music import bed, mix
-    if args.video:
-        return mix(Path(args.video), Path(args.music), Path(args.out),
-                   args.music_db, args.duck_db) and 0
-    bed(args.seconds, Path(args.music), args.style, args.seed)
+    from demoforge.music import bed, mix, score
+    music = Path(args.music)
+    if args.video and args.style:
+        # A style asked for alongside a cut means a fresh bed sized to that
+        # cut, not whatever bed.wav was left over from the last one.
+        score(Path(args.video), music, Path(args.out), args.style, args.seed,
+              args.music_db, args.duck_db)
+    elif args.video:
+        mix(Path(args.video), music, Path(args.out), args.music_db, args.duck_db)
+    else:
+        bed(args.seconds, music, args.style or "lofi", args.seed)
     return 0
 
 
@@ -237,13 +243,17 @@ def cmd_reel(args) -> int:
     argv = [args.action, "--project", args.project]
     if args.action == "plan" and args.source:
         argv += ["--from", args.source]
-    if args.action in ("build", "all") and args.out:
+    if args.action in ("build", "all", "cover") and args.out:
         argv += ["--out", args.out]
     if args.action == "build":
         if args.only:
             argv += ["--only", *args.only.split(",")]
         if args.steps:
             argv += ["--steps", args.steps]
+    if args.action == "cover":
+        argv += ["--at", str(args.at)]
+        for line in args.line or []:
+            argv += ["--line", line]
     return reel.main(argv)
 
 
@@ -266,7 +276,8 @@ def cmd_short(args) -> int:
 
 def cmd_tool(args) -> int:
     """One feature, one file. Score, caption, tighten, gaze, cover, punch,
-    voice, lipsync, and the two b-roll tools, each as a single command."""
+    voice, lipsync, the two b-roll tools, matte, restore and voice-check, each
+    as a single command."""
     from demoforge import tools
     return tools.main([args.name, *args.rest])
 
@@ -284,7 +295,11 @@ def cmd_shortcut(args) -> int:
     return shortcuts.main()
 
 
-def main(argv=None) -> int:
+def build_parser() -> argparse.ArgumentParser:
+    """The whole command line, unparsed. Separate from `main` so the app's
+    catalog can be checked against it without running anything."""
+    from demoforge.music import STYLES
+
     ap = argparse.ArgumentParser(prog="demoforge", description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--version", action="version", version=f"demoforge {__version__}")
@@ -304,10 +319,14 @@ def main(argv=None) -> int:
 
     mu = sub.add_parser("music", help="synthesise a bed, or score a cut with one")
     mu.add_argument("--video", default=None, help="score this cut; omit to only make a bed")
-    mu.add_argument("--music", default=str(AUDIO / "bed.wav"))
+    mu.add_argument("--music", default=str(AUDIO / "bed.wav"),
+                    help="the bed: read when scoring, written when a --style is given")
     mu.add_argument("--out", default=str(OUT / "final-scored.mp4"))
-    mu.add_argument("--seconds", type=float, default=180)
-    mu.add_argument("--style", default="lofi")
+    mu.add_argument("--seconds", type=float, default=180,
+                    help="bed length without --video; with it, the cut's length")
+    mu.add_argument("--style", default=None, choices=sorted(STYLES),
+                    help="synthesise a bed in this style (default lofi); with "
+                         "--video, make one to fit the cut instead of reusing --music")
     mu.add_argument("--seed", type=int, default=0)
     mu.add_argument("--music-db", type=float, default=-23.0)
     mu.add_argument("--duck-db", type=float, default=-14.0)
@@ -378,10 +397,14 @@ def main(argv=None) -> int:
     rl = sub.add_parser(
         "reel",
         help="reel mode: one vertical take, cut into a short vertical film")
-    rl.add_argument("action", choices=["ingest", "plan", "build", "all"])
+    rl.add_argument("action", choices=["ingest", "plan", "build", "all", "cover"])
     rl.add_argument("--project", required=True)
     rl.add_argument("--from", dest="source", default=None,
                     help="with `plan`: settle a cut written by hand")
+    rl.add_argument("--at", type=float, default=0.0,
+                    help="with `cover`: seconds into the cut")
+    rl.add_argument("--line", action="append", default=None,
+                    help="with `cover`: a banner line; repeat for more. *word* is accented")
     rl.add_argument("--out", default=None)
     rl.add_argument("--only", default=None, help="comma list of section ids")
     rl.add_argument("--steps", default=None,
@@ -415,8 +438,11 @@ def main(argv=None) -> int:
 
     sub.add_parser("shortcut", help="put the app in the Start Menu and on the desktop"
                    ).set_defaults(fn=cmd_shortcut)
+    return ap
 
-    args = ap.parse_args(argv)
+
+def main(argv=None) -> int:
+    args = build_parser().parse_args(argv)
     return args.fn(args)
 
 
