@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "demoforge-app",
+      "runtimeExecutable": ".venv/Scripts/python.exe",
+      "runtimeArgs": ["-m", "demoforge.cli", "app", "--serve", "--port", "8765"],
+      "port": 8765
+    }
+  ]
+}
