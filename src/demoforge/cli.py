@@ -438,6 +438,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     sub.add_parser("shortcut", help="put the app in the Start Menu and on the desktop"
                    ).set_defaults(fn=cmd_shortcut)
+
+    from demoforge.film import cli as film_cli
+    film_cli.add_subparser(sub)
     return ap
 
 

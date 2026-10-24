@@ -419,6 +419,8 @@ def doctor() -> list[dict[str, Any]]:
         "pip install pywebview", "the app")
     add("playwright", "Browser capture (playwright)", _importable("playwright"), "",
         "pip install playwright && playwright install chromium", "Demo browser scenes")
+    add("node", "HyperFrames renderer (node + npx)", shutil.which("npx") is not None, "",
+        "install Node.js 20+ (npx hyperframes is fetched on first use)", "Film")
     return checks
 
 

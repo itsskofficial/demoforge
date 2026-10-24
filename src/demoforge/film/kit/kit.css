@@ -1,0 +1,73 @@
+/* film kit: shared design tokens and faces (the pitch film's, as a starting point). Read-only for scene builders. */
+@font-face {
+  font-family: "JetBrains Mono";
+  src: url("../assets/fonts/jetbrains-mono-latin-400-normal.woff2") format("woff2");
+  font-weight: 400;
+}
+@font-face {
+  font-family: "JetBrains Mono";
+  src: url("../assets/fonts/jetbrains-mono-latin-700-normal.woff2") format("woff2");
+  font-weight: 700;
+}
+@font-face {
+  font-family: "Instrument Serif";
+  src: url("../assets/fonts/instrument-serif-latin-400-italic.woff2") format("woff2");
+  font-style: italic;
+}
+@font-face {
+  font-family: "Instrument Serif";
+  src: url("../assets/fonts/instrument-serif-latin-400-normal.woff2") format("woff2");
+  font-style: normal;
+}
+@font-face {
+  font-family: "Caveat";
+  src: url("../assets/fonts/caveat-latin-600-normal.woff2") format("woff2");
+  font-weight: 600;
+}
+
+:root {
+  --ink: #0b0d12;
+  --ink-2: #141823;
+  --ink-3: #1d2230;
+  --amber: #ffb547;
+  --amber-hot: #ffd08a;
+  --green: #3ddc84;
+  --paper: #f2ede4;
+  --dim: #8a8f9c;
+  --red: #ff5a4e;
+  --night: #1b2c52;
+  --glow-amber: 0 0 10px rgba(255, 181, 71, 0.75), 0 0 34px rgba(255, 140, 30, 0.35);
+  --glow-green: 0 0 10px rgba(61, 220, 132, 0.75), 0 0 34px rgba(61, 220, 132, 0.3);
+  --mono: "JetBrains Mono", ui-monospace, monospace;
+  --serif: "Instrument Serif", Georgia, serif;
+  --hand: "Caveat", cursive;
+}
+
+.kit-mono { font-family: var(--mono); }
+.kit-serif { font-family: var(--serif); font-style: italic; }
+.kit-hand { font-family: var(--hand); font-weight: 600; }
+.kit-kicker {
+  font-family: var(--mono);
+  font-size: 24px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--amber);
+}
+.kit-hash { font-family: var(--mono); font-size: 18px; color: rgba(242, 237, 228, 0.5); }
+.kit-cursor {
+  display: inline-block;
+  width: 0.55em;
+  height: 1em;
+  background: var(--amber);
+  box-shadow: var(--glow-amber);
+  vertical-align: -0.12em;
+}
+.kit-glow-amber { color: var(--amber); text-shadow: var(--glow-amber); }
+.kit-glow-green { color: var(--green); text-shadow: var(--glow-green); }
+.kit-layer { position: absolute; inset: 0; width: 100%; height: 100%; }
+/* dot grid used under the commit graph and other "machine" spaces */
+.kit-grid {
+  background-color: var(--ink);
+  background-image: radial-gradient(rgba(242, 237, 228, 0.07) 1.5px, transparent 1.6px);
+  background-size: 48px 48px;
+}

@@ -458,7 +458,11 @@ DEMO = Mode(
     output="film",
 )
 
-MODES: dict[str, Mode] = {m.key: m for m in (SHORT, REEL, EDIT, PRESENT, DEMO)}
+from demoforge.film.cli import film_mode  # noqa: E402  (film owns its own step list)
+
+FILM = film_mode()
+
+MODES: dict[str, Mode] = {m.key: m for m in (SHORT, REEL, EDIT, PRESENT, DEMO, FILM)}
 
 
 # ---------------------------------------------------------------------------
@@ -677,7 +681,7 @@ def public_tools() -> dict[str, Any]:
 
 # Detection order matters: a folder can carry more than one profile, and the
 # newest modes are the ones a person is most likely to be working in.
-DETECT = [SHORT, REEL, EDIT, PRESENT, DEMO]
+DETECT = [FILM, SHORT, REEL, EDIT, PRESENT, DEMO]
 
 
 def detect(directory: Path) -> Mode | None:
